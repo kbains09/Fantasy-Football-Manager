@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # ---- Go (auto-detect arch) ----
 ARG GO_VERSION=1.22.5
-# Map dpkg arch to Go's naming
 RUN ARCH="$(dpkg --print-architecture)"; \
     case "$ARCH" in \
       amd64) GOARCH=amd64 ;; \
@@ -18,24 +17,19 @@ RUN ARCH="$(dpkg --print-architecture)"; \
     esac; \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tgz && \
     tar -C /usr/local -xzf /tmp/go.tgz && \
-    ln -sf /usr/local/go/bin/go /usr/local/bin/go && \
-    mkdir -p /go/bin && \
-    printf 'export GOPATH=/go\nexport PATH=$PATH:/go/bin:/usr/local/go/bin\n' >> /etc/profile
+    ln -sf /usr/local/go/bin/go /usr/local/bin/go
 
-ENV GOPATH=/go
-ENV PATH=$PATH:/go/bin:/usr/local/go/bin
-
-# Poetry via pipx; no venvs inside container
+# ---- Poetry via pipx; no venvs inside container ----
 RUN pipx install poetry \
  && ln -sf /root/.local/bin/poetry /usr/local/bin/poetry \
  && poetry config virtualenvs.create false
 
-# Node 20
+# ---- Node 20 (optional, for assets) ----
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && apt-get update && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
-# (Devcontainers base already has 'vscode' user; this is safe if missing)
+# Ensure 'vscode' user exists (base image usually provides it)
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
@@ -43,7 +37,14 @@ RUN if ! id -u ${USERNAME} >/dev/null 2>&1; then \
       groupadd --gid ${USER_GID} ${USERNAME} && \
       useradd -s /bin/bash --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME}; \
     fi
-USER ${USERNAME}
 
-ENV PATH="/usr/local/go/bin:${PATH}"
+# ---- Make GOPATH user-writable and on PATH ----
+USER root
+RUN mkdir -p /home/${USERNAME}/go/bin && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/go
+USER ${USERNAME}
+ENV GOPATH=/home/${USERNAME}/go
+ENV GOBIN=/home/${USERNAME}/go/bin
+ENV GOMODCACHE=/home/${USERNAME}/go/pkg/mod
+ENV PATH=${PATH}:/usr/local/go/bin:${GOBIN}
+
 WORKDIR /workspace
