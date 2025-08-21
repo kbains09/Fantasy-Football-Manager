@@ -1,0 +1,27 @@
+// .devcontainer/devcontainer.json
+{
+    "name": "FantasyManager Dev",
+    "build": { "dockerfile": "Dockerfile" },
+    "workspaceFolder": "/workspace",
+    "features": {},
+    "runArgs": ["--init"],
+    "postCreateCommand": "make bootstrap",
+    "forwardPorts": [8080, 8000, 5432, 6379],
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "golang.Go",
+          "ms-python.python",
+          "charliermarsh.ruff",
+          "ms-azuretools.vscode-docker",
+          "redhat.vscode-yaml"
+        ]
+      }
+    },
+    "remoteEnv": {
+      "ENGINE_BASE_URL": "http://localhost:8000",
+      "DB_URL": "postgresql://dev:dev@localhost:5432/fantasy",
+      "REDIS_URL": "redis://localhost:6379/0"
+    }
+  }
+  

@@ -12,7 +12,7 @@ services:
   engine:
     build:
       context: ..
-      dockerfile: infra/docker/engine.Dockerfile
+      dockerfile: infra/engine/engine.Dockerfile
     env_file: ../.env
     environment:
       DB_URL: postgresql://dev:dev@db:5432/fantasy
@@ -22,7 +22,7 @@ services:
   web:
     build:
       context: ..
-    dockerfile: infra/docker/web.Dockerfile
+      dockerfile: infra/engine/web.Dockerfile
     env_file: ../.env
     environment:
       ENGINE_BASE_URL: http://engine:8000
