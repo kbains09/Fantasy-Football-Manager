@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+apps/engine-py/.venv/
+.poetry-cache/
+
+# Node
+node_modules/
+
+# Go
+bin/
+dist/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Docker/devcontainers
+.devcontainer/.cache/
