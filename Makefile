@@ -43,6 +43,10 @@ gen: ## generate API clients from OpenAPI
 		echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; \
 	fi
 
+.PHONY: tools
+tools: ## install dev tools (oapi-codegen, linters)
+	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
 # ---------------------------------------------------------------------
 # Devcontainer local dev (manual app run). Postgres & Redis are started
 # by .devcontainer/docker-compose.yaml. Use these helpers to run apps.
