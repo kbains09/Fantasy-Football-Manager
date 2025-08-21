@@ -1,27 +1,37 @@
-// .devcontainer/devcontainer.json
 {
-    "name": "FantasyManager Dev",
-    "build": { "dockerfile": "Dockerfile" },
-    "workspaceFolder": "/workspace",
-    "features": {},
-    "runArgs": ["--init"],
-    "postCreateCommand": "make bootstrap",
-    "forwardPorts": [8080, 8000, 5432, 6379],
-    "customizations": {
-      "vscode": {
-        "extensions": [
-          "golang.Go",
-          "ms-python.python",
-          "charliermarsh.ruff",
-          "ms-azuretools.vscode-docker",
-          "redhat.vscode-yaml"
-        ]
+  "name": "FantasyManager Dev",
+  "dockerComposeFile": "compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+
+  "forwardPorts": [8080, 8000, 5432, 6379],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python3", // safer
+        "python.analysis.typeCheckingMode": "basic",
+        "go.gopath": "/go",
+        "go.toolsGopath": "/go"
       }
-    },
-    "remoteEnv": {
-      "ENGINE_BASE_URL": "http://localhost:8000",
-      "DB_URL": "postgresql://dev:dev@localhost:5432/fantasy",
-      "REDIS_URL": "redis://localhost:6379/0"
     }
-  }
-  
+  },
+
+  "remoteEnv": {
+    // Inside devcontainer, use service names (postgres/redis), not localhost
+    "ENGINE_BASE_URL": "http://app:8000",  
+    "DB_URL": "postgresql://dev:dev@postgres:5432/fantasy?sslmode=disable",
+    "REDIS_URL": "redis://redis:6379/0"
+  },
+
+  "runArgs": ["--init"],
+  "postCreateCommand": "make bootstrap || true",
+  "postStartCommand": "echo 'Dev container ready. Run: make up'"
+}
