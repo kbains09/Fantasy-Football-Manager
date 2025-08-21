@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: FantasyManager Engine
+  version: 0.1.0
+servers:
+  - url: http://engine:8000
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { ok: { type: boolean } }
+
+  /ingest/league:
+    post:
+      summary: Ingest league teams/rosters/settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeagueIngest' }
+      responses:
+        '204': { description: Accepted }
+
+  /compute/valuations:
+    post:
+      summary: Recompute player valuations (VORP)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                week: { type: integer }
+                source: { type: string, description: "projection source id" }
+      responses:
+        '202': { description: Started }
+
+  /recommend/free-agents:
+    get:
+      summary: Get best free-agent pickups for a team
+      parameters:
+        - in: query
+          name: team_id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
+      responses:
+        '200':
+          description: Ranked suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FaSuggestion' }
+
+  /recommend/trades:
+    post:
+      summary: Generate trade offers that improve your team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team_id]
+              properties:
+                team_id: { type: string }
+                max_offers_per_opponent: { type: integer, default: 2 }
+                aggressiveness: { type: string, enum: [conservative, neutral, aggressive], default: neutral }
+      responses:
+        '200':
+          description: Trade suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TradeSuggestion' }
+
+components:
+  schemas:
+    LeagueIngest:
+      type: object
+      required: [teams, rosters, settings]
+      properties:
+        teams:
+          type: array
+          items: { $ref: '#/components/schemas/Team' }
+        rosters:
+          type: array
+          items: { $ref: '#/components/schemas/Roster' }
+        settings:
+          type: object
+          description: "scoring_json, roster_rules_json, faab, budget, etc."
+    Team:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        manager: { type: string }
+    Roster:
+      type: object
+      required: [team_id, player_id, slot]
+      properties:
+        team_id: { type: string }
+        player_id: { type: string }
+        slot: { type: string, description: "QB/RB/WR/TE/FLEX/BN/IR" }
+    FaSuggestion:
+      type: object
+      required: [player_id, delta_value]
+      properties:
+        player_id: { type: string }
+        delta_value: { type: number, format: float }
+        suggested_faab: { type: integer }
+        rationale: { type: string }
+    TradeSuggestion:
+      type: object
+      required: [opponent_team_id, give, get, delta_you, delta_them]
+      properties:
+        opponent_team_id: { type: string }
+        give:
+          type: array
+          items: { type: string, description: "player_id" }
+        get:
+          type: array
+          items: { type: string, description: "player_id" }
+        delta_you: { type: number, format: float }
+        delta_them: { type: number, format: float }
+        rationale: { type: string }
