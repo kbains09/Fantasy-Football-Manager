@@ -9,8 +9,7 @@ import (
 
 func main() {
 	mux := http.NewServeMux()
-
-	// Simple health
+å
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"ok": true}`)
@@ -19,7 +18,7 @@ func main() {
 	// Example: read ENGINE_BASE_URL env for later calls to FastAPI
 	engineBase := os.Getenv("ENGINE_BASE_URL")
 	if engineBase == "" {
-		engineBase = "http://app:8000" // safe default inside devcontainer network
+		engineBase = "http://app:8000" 
 	}
 	log.Println("ENGINE_BASE_URL:", engineBase)
 

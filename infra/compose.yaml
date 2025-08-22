@@ -52,7 +52,6 @@ services:
   web:
     build:
       context: ..
-    # ^ if you haven’t renamed, make sure this path matches: infra/web/web.Dockerfile
       dockerfile: infra/web/web.Dockerfile
     env_file: ../.env
     environment:

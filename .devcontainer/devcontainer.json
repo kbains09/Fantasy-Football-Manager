@@ -16,7 +16,7 @@
         "redhat.vscode-yaml"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python3", // safer
+        "python.defaultInterpreterPath": "/usr/local/bin/python3",
         "python.analysis.typeCheckingMode": "basic",
         "go.gopath": "/go",
         "go.toolsGopath": "/go"
@@ -25,7 +25,7 @@
   },
 
   "remoteEnv": {
-    // Inside devcontainer, use service names (postgres/redis), not localhost
+    // Allows connection to engine-py, redis, and postgres
     "ENGINE_BASE_URL": "http://app:8000",  
     "DB_URL": "postgresql://dev:dev@postgres:5432/fantasy?sslmode=disable",
     "REDIS_URL": "redis://redis:6379/0"

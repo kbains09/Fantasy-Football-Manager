@@ -19,7 +19,7 @@ RUN ARCH="$(dpkg --print-architecture)"; \
     tar -C /usr/local -xzf /tmp/go.tgz && \
     ln -sf /usr/local/go/bin/go /usr/local/bin/go
 
-# ---- Poetry via pipx; no venvs inside container ----
+# ---- Poetry via pipx; ----
 RUN pipx install poetry \
  && ln -sf /root/.local/bin/poetry /usr/local/bin/poetry \
  && poetry config virtualenvs.create false
@@ -29,7 +29,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && apt-get update && apt-get install -y --no-install-recommends nodejs \
  && rm -rf /var/lib/apt/lists/*
 
-# Ensure 'vscode' user exists (base image usually provides it)
+# Ensure 'vscode' user exists
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID

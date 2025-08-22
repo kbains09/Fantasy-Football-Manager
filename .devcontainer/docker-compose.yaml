@@ -11,12 +11,11 @@ services:
     depends_on:
       - postgres
       - redis
-    # Useful if your Makefile runs servers on these ports
     ports:
-      - "8000:8000"  # Python API (e.g., uvicorn)
-      - "8080:8080"  # Go web (e.g., air/templ dev or plain go run)
+      - "8000:8000"  # Python API
+      - "8080:8080"  # Go web 
     environment:
-      # Mirror what's in devcontainer.json (VS Code injects those too)
+      # Mirror what's in devcontainer.json
       ENGINE_BASE_URL: "http://localhost:8000"
       DB_URL: "postgresql://dev:dev@postgres:5432/fantasy?sslmode=disable"
       REDIS_URL: "redis://redis:6379/0"
