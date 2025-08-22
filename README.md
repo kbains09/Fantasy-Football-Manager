@@ -12,7 +12,7 @@ The project uses:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Prerequisites
 
@@ -111,7 +111,7 @@ Redis    → redis://localhost:6379/0
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 .devcontainer/        # Dev container configs
@@ -124,7 +124,7 @@ Makefile              # Common commands
 
 ---
 
-## 🛠 Common Commands
+## Common Commands
 
 ```bash
 make bootstrap     # install deps, run setup
@@ -136,7 +136,7 @@ make test          # run all tests
 
 ---
 
-## 📝 API
+## API
 
 The Engine API is described in **`engine.openapi.yaml`**.
 To regenerate the Go client after updating the spec:
@@ -147,7 +147,7 @@ make gen
 
 ---
 
-## 🔮 Roadmap
+## Roadmap
 
 * [ ] Team management
 * [ ] Free agent pool tracking
@@ -156,7 +156,7 @@ make gen
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feature/my-feature`)
@@ -166,7 +166,7 @@ make gen
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 See the LICENSE file for details.
