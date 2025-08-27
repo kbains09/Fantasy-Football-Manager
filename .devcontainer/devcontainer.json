@@ -18,8 +18,8 @@
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python3",
         "python.analysis.typeCheckingMode": "basic",
-        "go.gopath": "/go",
-        "go.toolsGopath": "/go"
+        "go.gopath": "/home/vscode/go",
+        "go.toolsGopath": "/home/vscode/go"
       }
     }
   },
