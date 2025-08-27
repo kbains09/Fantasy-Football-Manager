@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 apps/engine-py/.venv/
+apps/engine-py/.env
 .poetry-cache/
 
 # Node
@@ -18,3 +19,4 @@ dist/
 
 # Docker/devcontainers
 .devcontainer/.cache/
+
