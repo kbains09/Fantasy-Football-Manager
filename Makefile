@@ -4,7 +4,7 @@ SHELL := /bin/bash
 PY_DIR := apps/engine-py
 GO_DIR := apps/web-go
 OPENAPI := apis/engine.openapi.yaml
-OAPI_CFG := apis/oapi-codegen.yaml    
+OAPI_CFG := apis/oapi-codegen.yaml
 
 # Helper “exists” checks
 HAS_PY := $(wildcard $(PY_DIR)/pyproject.toml)
@@ -13,11 +13,16 @@ HAS_GO := $(wildcard $(GO_DIR)/go.mod)
 # Default compose file for prod-like runs (engine+web+db+redis)
 INFRA_COMPOSE := infra/compose.yaml
 
+# Default DB URLs
+DC_DB_URL := postgresql+psycopg://dev:dev@postgres:5432/fantasy   # devcontainer DB host
+INFRA_DB_URL := postgresql+psycopg://dev:dev@db:5432/fantasy      # infra/compose DB host
+
 .PHONY: help
 help: ## show available targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}' | sort
 
 # ---------------------------------------------------------------------
+# Bootstrap & tools
 
 .PHONY: bootstrap
 bootstrap: ## install deps if present (Poetry + Go)
@@ -36,7 +41,7 @@ bootstrap: ## install deps if present (Poetry + Go)
 	fi
 
 .PHONY: tools
-tools: ## install dev tools (oapi-codegen, linters)
+tools: ## install dev tools (oapi-codegen, golangci-lint)
 	@echo "==> Installing dev tools"
 	@which oapi-codegen >/dev/null 2>&1 || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@which golangci-lint >/dev/null 2>&1 || (curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$HOME/go/bin v1.60.0)
@@ -78,7 +83,43 @@ dev-web: ## run Go web on :8080; ENGINE_BASE_URL defaults to http://localhost:80
 	fi
 
 # ---------------------------------------------------------------------
-# Infra (prod-like stack) – builds and runs dockerized engine+web+db+redis
+# Alembic (DB migrations) – default to devcontainer DB; override DB_URL=... as needed
+
+.PHONY: alembic-rev
+alembic-rev: ## create an autogen revision with MSG="..."
+	@if [ -n "$(HAS_PY)" ]; then \
+		cd $(PY_DIR) && DB_URL=$${DB_URL:-$(DC_DB_URL)} \
+		alembic revision -m "$${MSG:-autogen}" --autogenerate; \
+	else echo "No Python project"; fi
+
+.PHONY: alembic-up
+alembic-up: ## upgrade to head
+	@if [ -n "$(HAS_PY)" ]; then \
+		cd $(PY_DIR) && DB_URL=$${DB_URL:-$(DC_DB_URL)} \
+		alembic upgrade head; \
+	else echo "No Python project"; fi
+
+.PHONY: alembic-downgrade
+alembic-downgrade: ## downgrade one step (or set STEP=N)
+	@if [ -n "$(HAS_PY)" ]; then \
+		cd $(PY_DIR) && DB_URL=$${DB_URL:-$(DC_DB_URL)} \
+		alembic downgrade -$${STEP:-1}; \
+	else echo "No Python project"; fi
+
+# ---------------------------------------------------------------------
+# Seeding
+
+.PHONY: seed
+seed: ## seed demo data into DB (uses apps/engine-py/seed.py)
+	@if [ -n "$(HAS_PY)" ]; then \
+		cd $(PY_DIR) && DB_URL=$${DB_URL:-$(DC_DB_URL)} \
+		python seed.py; \
+	else \
+		echo "Seed script not found or Python project missing"; \
+	fi
+
+# ---------------------------------------------------------------------
+# Infra (prod-like stack): dockerized engine+web+db+redis
 
 .PHONY: infra-up
 infra-up: ## docker compose up (engine, web, db, redis)
@@ -131,14 +172,4 @@ test: ## run tests when available
 		cd $(GO_DIR) && go test ./... || echo 'No Go tests yet'; \
 	else \
 		echo "Skipping Go tests"; \
-	fi
-
-# ---------------------------------------------------------------------
-
-.PHONY: seed
-seed: ## seed demo data (if script exists)
-	@if [ -f "ops/scripts/seed_league.py" ]; then \
-		python ops/scripts/seed_league.py --file examples/league.json; \
-	else \
-		echo "Seed script not found"; \
 	fi
