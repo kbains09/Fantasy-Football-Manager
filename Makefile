@@ -4,6 +4,7 @@ SHELL := /bin/bash
 PY_DIR := apps/engine-py
 GO_DIR := apps/web-go
 OPENAPI := apis/engine.openapi.yaml
+OAPI_CFG := apis/oapi-codegen.yaml    
 
 # Helper “exists” checks
 HAS_PY := $(wildcard $(PY_DIR)/pyproject.toml)
@@ -34,35 +35,44 @@ bootstrap: ## install deps if present (Poetry + Go)
 		echo " • Skipping Go: $(GO_DIR)/go.mod not found"; \
 	fi
 
-.PHONY: gen
-gen: ## generate API clients from OpenAPI
-	@if [ -f "$(OPENAPI)" ]; then \
-		echo "==> Generating Go client from $(OPENAPI)"; \
-		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
-	else \
-		echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; \
-	fi
-
 .PHONY: tools
 tools: ## install dev tools (oapi-codegen, linters)
-	go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@echo "==> Installing dev tools"
+	@which oapi-codegen >/dev/null 2>&1 || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@which golangci-lint >/dev/null 2>&1 || (curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$HOME/go/bin v1.60.0)
 
 # ---------------------------------------------------------------------
-# Devcontainer local dev (manual app run). Postgres & Redis are started
-# by .devcontainer/docker-compose.yaml. Use these helpers to run apps.
+# OpenAPI -> generated clients
 
-.PHONY: engine
-engine: ## run FastAPI engine in dev (uses current env)
+.PHONY: gen gen-go
+gen: gen-go ## generate API clients from OpenAPI
+
+gen-go: ## generate Go client from $(OPENAPI)
+	@if [ ! -f "$(OPENAPI)" ]; then echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; fi
+	@echo "==> Generating Go client from $(OPENAPI)"
+	@if [ -f "$(OAPI_CFG)" ]; then \
+		oapi-codegen -config $(OAPI_CFG) $(OPENAPI); \
+	else \
+		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
+	fi
+	@echo "==> go fmt"
+	@go fmt ./packages/clients/go/...
+
+# ---------------------------------------------------------------------
+# Dev (run services by hand, using host ports)
+
+.PHONY: dev-engine
+dev-engine: ## run FastAPI engine on :8000 (reads local env)
 	@if [ -n "$(HAS_PY)" ]; then \
-		cd $(PY_DIR) && poetry run uvicorn main:app --host 0.0.0.0 --port 8000; \
+		cd $(PY_DIR) && poetry run uvicorn app:app --host 0.0.0.0 --port 8000; \
 	else \
 		echo "Engine not scaffolded (missing $(PY_DIR)/pyproject.toml)"; exit 1; \
 	fi
 
-.PHONY: web
-web: ## run Go web in dev (uses current env)
+.PHONY: dev-web
+dev-web: ## run Go web on :8080; ENGINE_BASE_URL defaults to http://localhost:8000
 	@if [ -n "$(HAS_GO)" ]; then \
-		cd $(GO_DIR) && go run ./cmd/web; \
+		cd $(GO_DIR) && ENGINE_BASE_URL=$${ENGINE_BASE_URL:-http://localhost:8000} go run ./cmd/web; \
 	else \
 		echo "Web not scaffolded (missing $(GO_DIR)/go.mod)"; exit 1; \
 	fi
