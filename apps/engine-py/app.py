@@ -1,7 +1,7 @@
 # apps/engine-py/app.py
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from pydantic import BaseModel
+from typing import List, Optional
 
 app = FastAPI(title="FantasyManager Engine", version="0.1.0")
 
