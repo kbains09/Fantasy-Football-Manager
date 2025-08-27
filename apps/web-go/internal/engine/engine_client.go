@@ -2,31 +2,40 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 
-	engineapi "github.com/kbains09/FantasyManager/packages/clients/go" 
+	engineapi "github.com/kbains09/FantasyManager/packages/clients/go"
 )
 
-func client() *engineapi.ClientWithResponses {
-	base := os.Getenv("ENGINE_BASE_URL")
-	if base == "" {
-		base = "http://app:8000" 
+func baseURL() string {
+	if v := os.Getenv("ENGINE_BASE_URL"); v != "" {
+		return v
 	}
-	c, _ := engineapi.NewClientWithResponses(base, engineapi.WithHTTPClient(&http.Client{}))
+	// Local dev (two processes): engine on :8000 localhost
+	// Compose (web service): compose injects ENGINE_BASE_URL=http://engine:8000
+	return "http://localhost:8000"
+}
+
+func client() *engineapi.ClientWithResponses {
+	c, _ := engineapi.NewClientWithResponses(
+		baseURL(),
+		engineapi.WithHTTPClient(&http.Client{}),
+	)
 	return c
 }
 
 func FreeAgents(ctx context.Context, teamID string, limit int) ([]engineapi.FaSuggestion, error) {
 	resp, err := client().GetRecommendFreeAgentsWithResponse(ctx, &engineapi.GetRecommendFreeAgentsParams{
 		TeamId: teamID,
-		Limit:  engineapi.NewOptInt(limit),
+		Limit:  &limit,
 	})
 	if err != nil {
 		return nil, err
 	}
 	if resp.JSON200 == nil {
-		return nil, err
+		return nil, errors.New(resp.Status())
 	}
 	return *resp.JSON200, nil
 }
