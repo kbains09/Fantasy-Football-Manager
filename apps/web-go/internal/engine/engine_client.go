@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	engineapi "github.com/kbains09/fantasymanager/packages/clients/go" 
+	engineapi "github.com/kbains09/FantasyManager/packages/clients/go" 
 )
 
 func client() *engineapi.ClientWithResponses {
