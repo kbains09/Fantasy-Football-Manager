@@ -34,7 +34,7 @@ services:
       dockerfile: infra/engine/engine.Dockerfile
     env_file: ../.env
     environment:
-      DB_URL: postgresql://dev:dev@db:5432/fantasy
+      DB_URL: postgresql+psycopg://dev:dev@db:5432/fantasy
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
