@@ -1,31 +1,44 @@
-# apps/engine-py/app.py
-from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from __future__ import annotations
+
 from typing import List, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from db import SessionLocal
+from models import Player, Roster, Team, Valuation
 
 app = FastAPI(title="FantasyManager Engine", version="0.1.0")
 
-# ----- Models (mirror OpenAPI) -----
-class Team(BaseModel):
+
+# ---------- Pydantic I/O models ----------
+class TeamIn(BaseModel):
     id: str
     name: str
     manager: Optional[str] = None
 
-class Roster(BaseModel):
+
+class RosterIn(BaseModel):
     team_id: str
     player_id: str
-    slot: str 
+    slot: str
+
 
 class LeagueIngest(BaseModel):
-    teams: List[Team]
-    rosters: List[Roster]
+    teams: List[TeamIn]
+    rosters: List[RosterIn]
     settings: dict
+
 
 class FaSuggestion(BaseModel):
     player_id: str
     delta_value: float
     suggested_faab: Optional[int] = None
     rationale: Optional[str] = None
+
 
 class TradeSuggestion(BaseModel):
     opponent_team_id: str
@@ -35,54 +48,117 @@ class TradeSuggestion(BaseModel):
     delta_them: float
     rationale: Optional[str] = None
 
-# ----- Endpoints -----
+
+# ---------- DB session dependency ----------
+def get_db() -> Session:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ---------- Routes ----------
 @app.get("/health")
 def health():
     return {"ok": True}
 
+
 @app.post("/ingest/league", status_code=204)
-def ingest_league(payload: LeagueIngest):
-    # TODO: persist teams, rosters, settings -> DB
-    # For now, just accept and return 204
-    return
+def ingest_league(payload: LeagueIngest, db: Session = Depends(get_db)):
+    """
+    MVP upsert for teams + full replace of rosters for the given payload.
+    Players referenced in rosters are auto-created if missing (pos=None).
+    """
+    # upsert teams
+    for t in payload.teams:
+        existing = db.get(Team, t.id)
+        if existing:
+            existing.name = t.name
+            existing.manager = t.manager
+        else:
+            db.add(Team(id=t.id, name=t.name, manager=t.manager))
+
+    # full replace rosters (simple strategy for now)
+    db.execute(delete(Roster))
+    for r in payload.rosters:
+        if not db.get(Player, r.player_id):
+            db.add(Player(id=r.player_id, pos=None))
+        db.add(Roster(team_id=r.team_id, player_id=r.player_id, slot=r.slot))
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Integrity error during ingest")
+
 
 @app.post("/compute/valuations", status_code=202)
-def compute_valuations(week: Optional[int] = None, source: Optional[str] = None):
-    # TODO: enqueue a job / run valuation computation
-    # For now, pretend we started a job
-    return
+def compute_valuations(
+    week: int | None = None,
+    source: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Naive baseline: assign a fixed value by position so we can exercise the UI end-to-end.
+    Re-runs overwrite the same (source, week).
+    """
+    pos_weight = {"RB": 12.0, "WR": 11.0, "QB": 10.0, "TE": 8.0, None: 6.0}
+    w = week or 0
+    s = source or "baseline"
+
+    players = db.execute(select(Player)).scalars().all()
+    db.execute(delete(Valuation).where(Valuation.source == s, Valuation.week == w))
+    for p in players:
+        val = pos_weight.get(p.pos, 6.0)
+        db.add(Valuation(player_id=p.id, value=val, source=s, week=w))
+
+    db.commit()
+
 
 @app.get("/recommend/free-agents", response_model=List[FaSuggestion])
 def recommend_free_agents(
     team_id: str = Query(...),
-    limit: int = Query(10, ge=1, le=50),
+    limit: int = Query(5, ge=1, le=50),
+    db: Session = Depends(get_db),
 ):
-    # TODO: implement with real valuations + roster needs
-    sample = [
-        FaSuggestion(player_id="wr_keenan_allen", delta_value=12.4, suggested_faab=18, rationale="WR2 upgrade"),
-        FaSuggestion(player_id="rb_jaylen_warren", delta_value=8.7, suggested_faab=12, rationale="RB depth + pass game"),
-        FaSuggestion(player_id="te_sam_laporta", delta_value=7.9, suggested_faab=10, rationale="Big red-zone role"),
-    ]
-    return sample[:limit]
+    """
+    “Free agents” = players not on any roster.
+    Rank by valuation delta vs the requesting team’s average valuation.
+    """
+    # rostered ids (all) + this team's ids
+    rostered_ids = {
+        r.player_id for r in db.execute(select(Roster)).scalars().all()
+    }
+    my_ids = {
+        r.player_id
+        for r in db.execute(select(Roster).where(Roster.team_id == team_id)).scalars().all()
+    }
 
-@app.post("/recommend/trades", response_model=List[TradeSuggestion])
-def recommend_trades(
-    body: dict
-):
-    # Basic validation
-    team_id = body.get("team_id")
-    if not team_id:
-        raise HTTPException(status_code=400, detail="team_id is required")
+    # valuation map
+    vals_map = {
+        v.player_id: v.value for v in db.execute(select(Valuation)).scalars().all()
+    }
 
-    # TODO: implement trade search with constraints
-    sample = [
-        TradeSuggestion(
-            opponent_team_id="team_b",
-            give=["rb_your_rb2"],
-            get=["wr_their_wr2"],
-            delta_you=9.3,
-            delta_them=1.2,
-            rationale="You’re WR‑needy; they’re RB‑needy",
+    # team average
+    my_vals = [vals_map.get(pid, 0.0) for pid in my_ids]
+    my_avg = sum(my_vals) / len(my_vals) if my_vals else 0.0
+
+    # only players with a valuation and not rostered
+    fa_ids = [pid for pid in vals_map.keys() if pid not in rostered_ids]
+
+    suggestions: list[FaSuggestion] = []
+    for pid in fa_ids:
+        v = float(vals_map.get(pid, 0.0))
+        delta = v - my_avg
+        suggestions.append(
+            FaSuggestion(
+                player_id=pid,
+                delta_value=round(delta, 2),
+                suggested_faab=max(0, int(v // 2)),
+                rationale="Baseline valuation vs your avg",
+            )
         )
-    ]
-    return sample
+
+    suggestions.sort(key=lambda x: x.delta_value, reverse=True)
+    return suggestions[:limit]
