@@ -33,7 +33,9 @@ type FaSuggestion struct {
 
 // LeagueIngest defines model for LeagueIngest.
 type LeagueIngest struct {
-	Rosters  []Roster               `json:"rosters"`
+	Rosters []Roster `json:"rosters"`
+
+	// Settings scoring_json, roster_rules_json, faab, budget, etc.
 	Settings map[string]interface{} `json:"settings"`
 	Teams    []Team                 `json:"teams"`
 }
@@ -41,8 +43,10 @@ type LeagueIngest struct {
 // Roster defines model for Roster.
 type Roster struct {
 	PlayerId string `json:"player_id"`
-	Slot     string `json:"slot"`
-	TeamId   string `json:"team_id"`
+
+	// Slot QB/RB/WR/TE/FLEX/BN/IR
+	Slot   string `json:"slot"`
+	TeamId string `json:"team_id"`
 }
 
 // Team defines model for Team.
@@ -64,6 +68,7 @@ type TradeSuggestion struct {
 
 // PostComputeValuationsJSONBody defines parameters for PostComputeValuations.
 type PostComputeValuationsJSONBody struct {
+	// Source projection source id
 	Source *string `json:"source,omitempty"`
 	Week   *int    `json:"week,omitempty"`
 }

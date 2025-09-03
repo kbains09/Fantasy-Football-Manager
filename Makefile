@@ -49,19 +49,31 @@ tools: ## install dev tools (oapi-codegen, golangci-lint)
 # ---------------------------------------------------------------------
 # OpenAPI -> generated clients
 
-.PHONY: gen gen-go
+.PHONY: gen gen-go gen-go-init
 gen: gen-go ## generate API clients from OpenAPI
 
-gen-go: ## generate Go client from $(OPENAPI)
+# one-time helper: initialize client module if it doesn't exist yet
+gen-go-init:
+	@mkdir -p packages/clients/go
+	@if [ ! -f packages/clients/go/go.mod ]; then \
+		echo "==> Initializing client Go module"; \
+		( cd packages/clients/go && go mod init github.com/kbains09/FantasyManager/packages/clients/go ); \
+	fi
+
+gen-go: gen-go-init ## generate Go client from $(OPENAPI)
 	@if [ ! -f "$(OPENAPI)" ]; then echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; fi
 	@echo "==> Generating Go client from $(OPENAPI)"
+	@mkdir -p packages/clients/go
 	@if [ -f "$(OAPI_CFG)" ]; then \
 		oapi-codegen -config $(OAPI_CFG) $(OPENAPI); \
 	else \
 		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
 	fi
-	@echo "==> go fmt"
-	@go fmt ./packages/clients/go/...
+	@echo "==> formatting generated code"
+	# Use module-agnostic formatter from repo root:
+	@gofmt -w packages/clients/go
+	# Also tidy & fmt inside the client module context:
+	@( cd packages/clients/go && go mod tidy && go fmt ./... )
 
 # ---------------------------------------------------------------------
 # Dev (run services by hand, using host ports)
@@ -83,7 +95,7 @@ dev-web: ## run Go web on :8080; ENGINE_BASE_URL defaults to http://localhost:80
 	fi
 
 # ---------------------------------------------------------------------
-# Alembic (DB migrations) – default to devcontainer DB; override DB_URL=... as needed
+# Alembic (DB migrations)
 
 .PHONY: alembic-rev
 alembic-rev: ## create an autogen revision with MSG="..."
