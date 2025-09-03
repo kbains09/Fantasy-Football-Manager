@@ -1,0 +1,16 @@
+# apis/oapi-codegen.yaml
+package: engine            # Go package name for the generated client
+generate:
+  types: true
+  client: true
+# Output path for the generated client code
+output: packages/clients/go/engine.gen.go
+
+# Optional: map /v1 prefix to nicer method names
+# (oapi-codegen v2 auto-camelCases operationIds even if absent)
+compatibility:
+  # keep response types ergonomic (don’t generate pointer fields for primitives)
+  pointers-for-primitives: false
+
+# You can also pin enum/string formatting behavior if you like:
+# enum-format: string
