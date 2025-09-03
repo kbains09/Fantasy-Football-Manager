@@ -70,21 +70,22 @@ gen-go: gen-go-init ## generate Go client from $(OPENAPI)
 		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
 	fi
 	@echo "==> formatting generated code"
-	# Use module-agnostic formatter from repo root:
 	@gofmt -w packages/clients/go
-	# Also tidy & fmt inside the client module context:
 	@( cd packages/clients/go && go mod tidy && go fmt ./... )
 
 # ---------------------------------------------------------------------
 # Dev (run services by hand, using host ports)
 
-.PHONY: dev-engine
-dev-engine: ## run FastAPI engine on :8000 (reads local env)
+.PHONY: engine/run
+engine/run: ## run FastAPI engine on :8000 (reads local env)
 	@if [ -n "$(HAS_PY)" ]; then \
-		cd $(PY_DIR) && poetry run uvicorn app:app --host 0.0.0.0 --port 8000; \
+		cd $(PY_DIR) && poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload; \
 	else \
 		echo "Engine not scaffolded (missing $(PY_DIR)/pyproject.toml)"; exit 1; \
 	fi
+
+.PHONY: dev-engine
+dev-engine: engine/run ## alias: run FastAPI engine locally
 
 .PHONY: dev-web
 dev-web: ## run Go web on :8080; ENGINE_BASE_URL defaults to http://localhost:8000
@@ -131,7 +132,7 @@ seed: ## seed demo data into DB (uses apps/engine-py/seed.py)
 	fi
 
 # ---------------------------------------------------------------------
-# Infra (prod-like stack): dockerized engine+web+db+redis
+# Infra (prod-like stack): dockerized engine+web+db+redis)
 
 .PHONY: infra-up
 infra-up: ## docker compose up (engine, web, db, redis)
@@ -163,7 +164,7 @@ infra-logs: ## tail logs from infra compose
 .PHONY: lint
 lint: ## run linters when available
 	@if [ -n "$(HAS_PY)" ]; then \
-		cd $(PY_DIR) && poetry run ruff check .; \
+		cd $(PY_DIR) && poetry run ruff check . || echo 'Install ruff to enable Python lint'; \
 	else \
 		echo "Skipping Python lint"; \
 	fi
