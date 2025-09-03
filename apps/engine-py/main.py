@@ -9,6 +9,11 @@ import routes_players
 import routes_teams
 import routes_ingest
 import routes_recommend
+import routes_sync_espn
+import routes_lineup
+
+
+import config
 
 def create_app() -> FastAPI:
     app = FastAPI(title="FantasyManager Engine", version="1.0.0")
@@ -30,6 +35,9 @@ def create_app() -> FastAPI:
     app.include_router(routes_teams.router,      prefix=api)
     app.include_router(routes_ingest.router,     prefix=api)
     app.include_router(routes_recommend.router,  prefix=api)
+    app.include_router(routes_sync_espn.router, prefix=api)
+    app.include_router(routes_lineup.router, prefix=api)
+
 
     return app
 
