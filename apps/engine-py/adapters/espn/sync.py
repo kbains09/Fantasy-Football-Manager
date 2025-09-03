@@ -2,28 +2,40 @@
 from __future__ import annotations
 from typing import Dict, Any
 from .client import ESPNClient
-from services import mock_data as store
+from services import store
 
-def full_sync() -> Dict[str, Any]:
-    c = ESPNClient()
+__all__ = ["full_sync", "delta_sync"]
+
+def _write_league_to_store(c: ESPNClient) -> Dict[str, Any]:
+    """
+    Idempotently writes league snapshot into the canonical in-memory store.
+    Returns basic counts for diagnostics.
+    """
+    # clear and re-fill for now (MVP). later: make this incremental.
+    if hasattr(store, "reset"):
+        store.reset()
+    else:
+        store.PLAYERS.clear()
+        store.TEAMS.clear()
+        store.ROSTERS.clear()
 
     # Teams
-    store.TEAMS.clear()
-    for t in c.teams():
-        store.TEAMS[t["id"]] = t
+    for t in c.league.teams:
+        tid = f"espn-{t.team_id}"
+        store.TEAMS[tid] = {
+            "id": tid,
+            "name": t.team_name,
+            "manager": getattr(t, "owners", getattr(t, "owner", None)),
+        }
 
-    # Rosters
+    # Rosters (normalized)
     store.ROSTERS.clear()
-    for r in c.rosters():
-        store.ROSTERS.setdefault(r["team_id"], []).append({
-            "player_id": r["player_id"],
-            "slot": r["slot"],
-        })
+    for row in c.rosters():
+        store.ROSTERS.setdefault(row["team_id"], []).append(
+            {"player_id": row["player_id"], "slot": row["slot"]}
+        )
 
-    # Settings
-    store.SETTINGS.update(c.league_settings())
-
-    # Players (meta from rosters + free agents page)
+    # Players meta
     meta = c.player_meta_from_rosters()
     for pid, pdata in meta.items():
         store.PLAYERS[pid] = {
@@ -31,8 +43,11 @@ def full_sync() -> Dict[str, Any]:
             "name": pdata.get("name", pid),
             "pos": pdata.get("pos", "WR"),
             "team": pdata.get("team", "FA"),
-            "bye_week": pdata.get("bye_week", None),
+            "bye_week": pdata.get("bye_week"),
         }
+
+    # Settings
+    store.SETTINGS.update(c.league_settings())
 
     return {
         "teams": len(store.TEAMS),
@@ -41,6 +56,16 @@ def full_sync() -> Dict[str, Any]:
         "settings": True,
     }
 
+def full_sync() -> Dict[str, Any]:
+    """
+    Full refresh from ESPN into services.store.
+    """
+    c = ESPNClient()
+    return _write_league_to_store(c)
+
 def delta_sync() -> Dict[str, Any]:
-    # MVP: re-run full sync (fast enough). Later: diff by recent transactions.
+    """
+    MVP delta: call full_sync(). Later, switch to only applying recent transactions.
+    Kept separate so routes can call /delta on a schedule without changing clients.
+    """
     return full_sync()

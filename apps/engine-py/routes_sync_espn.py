@@ -107,22 +107,41 @@ def sync_espn_delta():
     _require_env()
     return {"ok": True, "synced": delta_sync()}
 
-@router.get("/teams/mine")
+@router.get("/me/team")
 def my_team_id():
     """
     Convenience endpoint: returns your team id based on SWID or ESPN_MY_TEAM_ID.
+    Always returns JSON. 404 if we can't detect or override.
     """
     if not is_available():
         raise HTTPException(status_code=503, detail="espn-api not installed")
     _require_env()
-    c = ESPNClient()
+
+    try:
+        c = ESPNClient()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"ESPN config error: {e}")
 
     swid_core = (os.getenv("ESPN_SWID") or "").strip().strip("{}").upper()
     manual_override = os.getenv("ESPN_MY_TEAM_ID")
+
+    # Try SWID detection first
+    detected = None
     for t in c.league.teams:
         owners_raw = getattr(t, "owners", None) or getattr(t, "owner", None)
         if swid_core and swid_core in _extract_owner_ids(owners_raw):
-            return {"team_id": f"espn-{t.team_id}", "source": "swid"}
-    if manual_override:
-        return {"team_id": manual_override, "source": "env"}
-    raise HTTPException(status_code=404, detail="Could not detect your team; set ESPN_SWID or ESPN_MY_TEAM_ID")
+            detected = f"espn-{t.team_id}"
+            break
+
+    # Fallback to manual override
+    if not detected and manual_override:
+        return {"team_id": manual_override, "source": "env", "league_id": c.league_id, "year": c.year}
+
+    if detected:
+        return {"team_id": detected, "source": "swid", "league_id": c.league_id, "year": c.year}
+
+    # Nothing found
+    raise HTTPException(
+        status_code=404,
+        detail="Could not detect your team. Set ESPN_SWID (with braces) or ESPN_MY_TEAM_ID."
+    )

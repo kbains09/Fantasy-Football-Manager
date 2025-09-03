@@ -58,7 +58,8 @@ def recommend_lineup(
     def add(slot_name: str, it_or_list):
         if isinstance(it_or_list, list):
             for it in it_or_list:
-                if it: starters.append({"slot": slot_name, "player": it["player"], "valuation": it.get("valuation")})
+                if it:
+                    starters.append({"slot": slot_name, "player": it["player"], "valuation": it.get("valuation")})
         elif it_or_list:
             it = it_or_list
             starters.append({"slot": slot_name, "player": it["player"], "valuation": it.get("valuation")})
