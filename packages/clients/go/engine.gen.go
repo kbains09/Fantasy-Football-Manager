@@ -12,16 +12,52 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
 
-// Defines values for PostRecommendTradesJSONBodyAggressiveness.
+// Defines values for JobStatusStatus.
 const (
-	Aggressive   PostRecommendTradesJSONBodyAggressiveness = "aggressive"
-	Conservative PostRecommendTradesJSONBodyAggressiveness = "conservative"
-	Neutral      PostRecommendTradesJSONBodyAggressiveness = "neutral"
+	Done    JobStatusStatus = "done"
+	Failed  JobStatusStatus = "failed"
+	Queued  JobStatusStatus = "queued"
+	Running JobStatusStatus = "running"
 )
+
+// Defines values for PlayerPos.
+const (
+	PlayerPosDST PlayerPos = "DST"
+	PlayerPosK   PlayerPos = "K"
+	PlayerPosQB  PlayerPos = "QB"
+	PlayerPosRB  PlayerPos = "RB"
+	PlayerPosTE  PlayerPos = "TE"
+	PlayerPosWR  PlayerPos = "WR"
+)
+
+// Defines values for GetV1PlayersParamsPos.
+const (
+	GetV1PlayersParamsPosDST GetV1PlayersParamsPos = "DST"
+	GetV1PlayersParamsPosFLX GetV1PlayersParamsPos = "FLX"
+	GetV1PlayersParamsPosK   GetV1PlayersParamsPos = "K"
+	GetV1PlayersParamsPosQB  GetV1PlayersParamsPos = "QB"
+	GetV1PlayersParamsPosRB  GetV1PlayersParamsPos = "RB"
+	GetV1PlayersParamsPosTE  GetV1PlayersParamsPos = "TE"
+	GetV1PlayersParamsPosWR  GetV1PlayersParamsPos = "WR"
+)
+
+// Defines values for PostV1RecommendTradesJSONBodyAggressiveness.
+const (
+	Aggressive   PostV1RecommendTradesJSONBodyAggressiveness = "aggressive"
+	Conservative PostV1RecommendTradesJSONBodyAggressiveness = "conservative"
+	Neutral      PostV1RecommendTradesJSONBodyAggressiveness = "neutral"
+)
+
+// Error defines model for Error.
+type Error struct {
+	Details *map[string]interface{} `json:"details,omitempty"`
+	Error   string                  `json:"error"`
+}
 
 // FaSuggestion defines model for FaSuggestion.
 type FaSuggestion struct {
@@ -31,13 +67,65 @@ type FaSuggestion struct {
 	SuggestedFaab *int    `json:"suggested_faab,omitempty"`
 }
 
+// JobStatus defines model for JobStatus.
+type JobStatus struct {
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	Error     *Error     `json:"error,omitempty"`
+	Id        *string    `json:"id,omitempty"`
+
+	// ResultRef Optional link to affected resource(s)
+	ResultRef *map[string]interface{} `json:"result_ref"`
+	Status    *JobStatusStatus        `json:"status,omitempty"`
+	UpdatedAt *time.Time              `json:"updated_at,omitempty"`
+}
+
+// JobStatusStatus defines model for JobStatus.Status.
+type JobStatusStatus string
+
 // LeagueIngest defines model for LeagueIngest.
 type LeagueIngest struct {
 	Rosters []Roster `json:"rosters"`
 
-	// Settings scoring_json, roster_rules_json, faab, budget, etc.
+	// Settings scoring_json, roster_rules_json, faab_budget, etc.
 	Settings map[string]interface{} `json:"settings"`
 	Teams    []Team                 `json:"teams"`
+}
+
+// PagedFaSuggestions defines model for PagedFaSuggestions.
+type PagedFaSuggestions struct {
+	Cursor *string         `json:"cursor"`
+	Items  *[]FaSuggestion `json:"items,omitempty"`
+}
+
+// PagedPlayers defines model for PagedPlayers.
+type PagedPlayers struct {
+	Cursor *string   `json:"cursor"`
+	Items  *[]Player `json:"items,omitempty"`
+}
+
+// Player defines model for Player.
+type Player struct {
+	ByeWeek *int `json:"bye_week,omitempty"`
+
+	// ExtId external provider id
+	ExtId  *string   `json:"ext_id,omitempty"`
+	Id     string    `json:"id"`
+	Name   string    `json:"name"`
+	Pos    PlayerPos `json:"pos"`
+	Status *string   `json:"status,omitempty"`
+	Team   string    `json:"team"`
+}
+
+// PlayerPos defines model for Player.Pos.
+type PlayerPos string
+
+// PlayerValuation defines model for PlayerValuation.
+type PlayerValuation struct {
+	PlayerId    *string  `json:"player_id,omitempty"`
+	RankOverall *int     `json:"rank_overall,omitempty"`
+	RankPos     *int     `json:"rank_pos,omitempty"`
+	Vorp        *float32 `json:"vorp,omitempty"`
+	Week        *int     `json:"week,omitempty"`
 }
 
 // Roster defines model for Roster.
@@ -56,6 +144,17 @@ type Team struct {
 	Name    string  `json:"name"`
 }
 
+// TeamView defines model for TeamView.
+type TeamView struct {
+	Roster *[]struct {
+		Player    *Player          `json:"player,omitempty"`
+		Slot      *string          `json:"slot,omitempty"`
+		Valuation *PlayerValuation `json:"valuation,omitempty"`
+	} `json:"roster,omitempty"`
+	Team      *Team    `json:"team,omitempty"`
+	TeamScore *float32 `json:"team_score,omitempty"`
+}
+
 // TradeSuggestion defines model for TradeSuggestion.
 type TradeSuggestion struct {
 	DeltaThem      float32  `json:"delta_them"`
@@ -66,37 +165,68 @@ type TradeSuggestion struct {
 	Rationale      *string  `json:"rationale,omitempty"`
 }
 
-// PostComputeValuationsJSONBody defines parameters for PostComputeValuations.
-type PostComputeValuationsJSONBody struct {
+// BadRequest defines model for BadRequest.
+type BadRequest = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
+
+// PostV1ComputeValuationsJSONBody defines parameters for PostV1ComputeValuations.
+type PostV1ComputeValuationsJSONBody struct {
 	// Source projection source id
 	Source *string `json:"source,omitempty"`
 	Week   *int    `json:"week,omitempty"`
 }
 
-// GetRecommendFreeAgentsParams defines parameters for GetRecommendFreeAgents.
-type GetRecommendFreeAgentsParams struct {
-	TeamId string `form:"team_id" json:"team_id"`
-	Limit  *int   `form:"limit,omitempty" json:"limit,omitempty"`
+// PostV1IngestLeagueParams defines parameters for PostV1IngestLeague.
+type PostV1IngestLeagueParams struct {
+	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
 }
 
-// PostRecommendTradesJSONBody defines parameters for PostRecommendTrades.
-type PostRecommendTradesJSONBody struct {
-	Aggressiveness       *PostRecommendTradesJSONBodyAggressiveness `json:"aggressiveness,omitempty"`
-	MaxOffersPerOpponent *int                                       `json:"max_offers_per_opponent,omitempty"`
-	TeamId               string                                     `json:"team_id"`
+// GetV1PlayersParams defines parameters for GetV1Players.
+type GetV1PlayersParams struct {
+	Pos    *GetV1PlayersParamsPos `form:"pos,omitempty" json:"pos,omitempty"`
+	Team   *string                `form:"team,omitempty" json:"team,omitempty"`
+	Week   *int                   `form:"week,omitempty" json:"week,omitempty"`
+	Limit  *int                   `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string                `form:"cursor,omitempty" json:"cursor,omitempty"`
 }
 
-// PostRecommendTradesJSONBodyAggressiveness defines parameters for PostRecommendTrades.
-type PostRecommendTradesJSONBodyAggressiveness string
+// GetV1PlayersParamsPos defines parameters for GetV1Players.
+type GetV1PlayersParamsPos string
 
-// PostComputeValuationsJSONRequestBody defines body for PostComputeValuations for application/json ContentType.
-type PostComputeValuationsJSONRequestBody PostComputeValuationsJSONBody
+// GetV1RecommendFreeAgentsParams defines parameters for GetV1RecommendFreeAgents.
+type GetV1RecommendFreeAgentsParams struct {
+	TeamId string  `form:"team_id" json:"team_id"`
+	Week   *int    `form:"week,omitempty" json:"week,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
 
-// PostIngestLeagueJSONRequestBody defines body for PostIngestLeague for application/json ContentType.
-type PostIngestLeagueJSONRequestBody = LeagueIngest
+// PostV1RecommendTradesJSONBody defines parameters for PostV1RecommendTrades.
+type PostV1RecommendTradesJSONBody struct {
+	Aggressiveness       *PostV1RecommendTradesJSONBodyAggressiveness `json:"aggressiveness,omitempty"`
+	MaxOffersPerOpponent *int                                         `json:"max_offers_per_opponent,omitempty"`
+	TeamId               string                                       `json:"team_id"`
+	Week                 *int                                         `json:"week,omitempty"`
+}
 
-// PostRecommendTradesJSONRequestBody defines body for PostRecommendTrades for application/json ContentType.
-type PostRecommendTradesJSONRequestBody PostRecommendTradesJSONBody
+// PostV1RecommendTradesJSONBodyAggressiveness defines parameters for PostV1RecommendTrades.
+type PostV1RecommendTradesJSONBodyAggressiveness string
+
+// GetV1TeamsIdParams defines parameters for GetV1TeamsId.
+type GetV1TeamsIdParams struct {
+	Week *int `form:"week,omitempty" json:"week,omitempty"`
+}
+
+// PostV1ComputeValuationsJSONRequestBody defines body for PostV1ComputeValuations for application/json ContentType.
+type PostV1ComputeValuationsJSONRequestBody PostV1ComputeValuationsJSONBody
+
+// PostV1IngestLeagueJSONRequestBody defines body for PostV1IngestLeague for application/json ContentType.
+type PostV1IngestLeagueJSONRequestBody = LeagueIngest
+
+// PostV1RecommendTradesJSONRequestBody defines body for PostV1RecommendTrades for application/json ContentType.
+type PostV1RecommendTradesJSONRequestBody PostV1RecommendTradesJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -171,30 +301,42 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// PostComputeValuationsWithBody request with any body
-	PostComputeValuationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostV1ComputeValuationsWithBody request with any body
+	PostV1ComputeValuationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostComputeValuations(ctx context.Context, body PostComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostV1ComputeValuations(ctx context.Context, body PostV1ComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetHealth request
-	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetV1Health request
+	GetV1Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostIngestLeagueWithBody request with any body
-	PostIngestLeagueWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PostV1IngestLeagueWithBody request with any body
+	PostV1IngestLeagueWithBody(ctx context.Context, params *PostV1IngestLeagueParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostIngestLeague(ctx context.Context, body PostIngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PostV1IngestLeague(ctx context.Context, params *PostV1IngestLeagueParams, body PostV1IngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetRecommendFreeAgents request
-	GetRecommendFreeAgents(ctx context.Context, params *GetRecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetV1JobsJobId request
+	GetV1JobsJobId(ctx context.Context, jobId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PostRecommendTradesWithBody request with any body
-	PostRecommendTradesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetV1Players request
+	GetV1Players(ctx context.Context, params *GetV1PlayersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PostRecommendTrades(ctx context.Context, body PostRecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetV1ProjectionsSources request
+	GetV1ProjectionsSources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetV1RecommendFreeAgents request
+	GetV1RecommendFreeAgents(ctx context.Context, params *GetV1RecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PostV1RecommendTradesWithBody request with any body
+	PostV1RecommendTradesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PostV1RecommendTrades(ctx context.Context, body PostV1RecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetV1TeamsId request
+	GetV1TeamsId(ctx context.Context, id string, params *GetV1TeamsIdParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) PostComputeValuationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostComputeValuationsRequestWithBody(c.Server, contentType, body)
+func (c *Client) PostV1ComputeValuationsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1ComputeValuationsRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -205,8 +347,8 @@ func (c *Client) PostComputeValuationsWithBody(ctx context.Context, contentType 
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostComputeValuations(ctx context.Context, body PostComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostComputeValuationsRequest(c.Server, body)
+func (c *Client) PostV1ComputeValuations(ctx context.Context, body PostV1ComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1ComputeValuationsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +359,8 @@ func (c *Client) PostComputeValuations(ctx context.Context, body PostComputeValu
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetHealthRequest(c.Server)
+func (c *Client) GetV1Health(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1HealthRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -229,8 +371,8 @@ func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostIngestLeagueWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostIngestLeagueRequestWithBody(c.Server, contentType, body)
+func (c *Client) PostV1IngestLeagueWithBody(ctx context.Context, params *PostV1IngestLeagueParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1IngestLeagueRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +383,8 @@ func (c *Client) PostIngestLeagueWithBody(ctx context.Context, contentType strin
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostIngestLeague(ctx context.Context, body PostIngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostIngestLeagueRequest(c.Server, body)
+func (c *Client) PostV1IngestLeague(ctx context.Context, params *PostV1IngestLeagueParams, body PostV1IngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1IngestLeagueRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -253,8 +395,8 @@ func (c *Client) PostIngestLeague(ctx context.Context, body PostIngestLeagueJSON
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetRecommendFreeAgents(ctx context.Context, params *GetRecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetRecommendFreeAgentsRequest(c.Server, params)
+func (c *Client) GetV1JobsJobId(ctx context.Context, jobId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1JobsJobIdRequest(c.Server, jobId)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +407,8 @@ func (c *Client) GetRecommendFreeAgents(ctx context.Context, params *GetRecommen
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostRecommendTradesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostRecommendTradesRequestWithBody(c.Server, contentType, body)
+func (c *Client) GetV1Players(ctx context.Context, params *GetV1PlayersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1PlayersRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -277,8 +419,8 @@ func (c *Client) PostRecommendTradesWithBody(ctx context.Context, contentType st
 	return c.Client.Do(req)
 }
 
-func (c *Client) PostRecommendTrades(ctx context.Context, body PostRecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPostRecommendTradesRequest(c.Server, body)
+func (c *Client) GetV1ProjectionsSources(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1ProjectionsSourcesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -289,19 +431,67 @@ func (c *Client) PostRecommendTrades(ctx context.Context, body PostRecommendTrad
 	return c.Client.Do(req)
 }
 
-// NewPostComputeValuationsRequest calls the generic PostComputeValuations builder with application/json body
-func NewPostComputeValuationsRequest(server string, body PostComputeValuationsJSONRequestBody) (*http.Request, error) {
+func (c *Client) GetV1RecommendFreeAgents(ctx context.Context, params *GetV1RecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1RecommendFreeAgentsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostV1RecommendTradesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1RecommendTradesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PostV1RecommendTrades(ctx context.Context, body PostV1RecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPostV1RecommendTradesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetV1TeamsId(ctx context.Context, id string, params *GetV1TeamsIdParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetV1TeamsIdRequest(c.Server, id, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewPostV1ComputeValuationsRequest calls the generic PostV1ComputeValuations builder with application/json body
+func NewPostV1ComputeValuationsRequest(server string, body PostV1ComputeValuationsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostComputeValuationsRequestWithBody(server, "application/json", bodyReader)
+	return NewPostV1ComputeValuationsRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewPostComputeValuationsRequestWithBody generates requests for PostComputeValuations with any type of body
-func NewPostComputeValuationsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewPostV1ComputeValuationsRequestWithBody generates requests for PostV1ComputeValuations with any type of body
+func NewPostV1ComputeValuationsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -309,7 +499,7 @@ func NewPostComputeValuationsRequestWithBody(server string, contentType string, 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/compute/valuations")
+	operationPath := fmt.Sprintf("/v1/compute/valuations")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -329,8 +519,8 @@ func NewPostComputeValuationsRequestWithBody(server string, contentType string, 
 	return req, nil
 }
 
-// NewGetHealthRequest generates requests for GetHealth
-func NewGetHealthRequest(server string) (*http.Request, error) {
+// NewGetV1HealthRequest generates requests for GetV1Health
+func NewGetV1HealthRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -338,7 +528,7 @@ func NewGetHealthRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/health")
+	operationPath := fmt.Sprintf("/v1/health")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -356,19 +546,19 @@ func NewGetHealthRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPostIngestLeagueRequest calls the generic PostIngestLeague builder with application/json body
-func NewPostIngestLeagueRequest(server string, body PostIngestLeagueJSONRequestBody) (*http.Request, error) {
+// NewPostV1IngestLeagueRequest calls the generic PostV1IngestLeague builder with application/json body
+func NewPostV1IngestLeagueRequest(server string, params *PostV1IngestLeagueParams, body PostV1IngestLeagueJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPostIngestLeagueRequestWithBody(server, "application/json", bodyReader)
+	return NewPostV1IngestLeagueRequestWithBody(server, params, "application/json", bodyReader)
 }
 
-// NewPostIngestLeagueRequestWithBody generates requests for PostIngestLeague with any type of body
-func NewPostIngestLeagueRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewPostV1IngestLeagueRequestWithBody generates requests for PostV1IngestLeague with any type of body
+func NewPostV1IngestLeagueRequestWithBody(server string, params *PostV1IngestLeagueParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -376,7 +566,7 @@ func NewPostIngestLeagueRequestWithBody(server string, contentType string, body 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/ingest/league")
+	operationPath := fmt.Sprintf("/v1/ingest/league")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -393,11 +583,60 @@ func NewPostIngestLeagueRequestWithBody(server string, contentType string, body 
 
 	req.Header.Add("Content-Type", contentType)
 
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithLocation("simple", false, "Idempotency-Key", runtime.ParamLocationHeader, *params.IdempotencyKey)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
 	return req, nil
 }
 
-// NewGetRecommendFreeAgentsRequest generates requests for GetRecommendFreeAgents
-func NewGetRecommendFreeAgentsRequest(server string, params *GetRecommendFreeAgentsParams) (*http.Request, error) {
+// NewGetV1JobsJobIdRequest generates requests for GetV1JobsJobId
+func NewGetV1JobsJobIdRequest(server string, jobId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "job_id", runtime.ParamLocationPath, jobId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/jobs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetV1PlayersRequest generates requests for GetV1Players
+func NewGetV1PlayersRequest(server string, params *GetV1PlayersParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -405,7 +644,7 @@ func NewGetRecommendFreeAgentsRequest(server string, params *GetRecommendFreeAge
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/recommend/free-agents")
+	operationPath := fmt.Sprintf("/v1/players")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -418,21 +657,73 @@ func NewGetRecommendFreeAgentsRequest(server string, params *GetRecommendFreeAge
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "team_id", runtime.ParamLocationQuery, params.TeamId); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Pos != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "pos", runtime.ParamLocationQuery, *params.Pos); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
+		}
+
+		if params.Team != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "team", runtime.ParamLocationQuery, *params.Team); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Week != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "week", runtime.ParamLocationQuery, *params.Week); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
 		}
 
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -457,19 +748,8 @@ func NewGetRecommendFreeAgentsRequest(server string, params *GetRecommendFreeAge
 	return req, nil
 }
 
-// NewPostRecommendTradesRequest calls the generic PostRecommendTrades builder with application/json body
-func NewPostRecommendTradesRequest(server string, body PostRecommendTradesJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewPostRecommendTradesRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewPostRecommendTradesRequestWithBody generates requests for PostRecommendTrades with any type of body
-func NewPostRecommendTradesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewGetV1ProjectionsSourcesRequest generates requests for GetV1ProjectionsSources
+func NewGetV1ProjectionsSourcesRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -477,7 +757,138 @@ func NewPostRecommendTradesRequestWithBody(server string, contentType string, bo
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/recommend/trades")
+	operationPath := fmt.Sprintf("/v1/projections/sources")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetV1RecommendFreeAgentsRequest generates requests for GetV1RecommendFreeAgents
+func NewGetV1RecommendFreeAgentsRequest(server string, params *GetV1RecommendFreeAgentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/recommend/free-agents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "team_id", runtime.ParamLocationQuery, params.TeamId); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.Week != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "week", runtime.ParamLocationQuery, *params.Week); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPostV1RecommendTradesRequest calls the generic PostV1RecommendTrades builder with application/json body
+func NewPostV1RecommendTradesRequest(server string, body PostV1RecommendTradesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPostV1RecommendTradesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewPostV1RecommendTradesRequestWithBody generates requests for PostV1RecommendTrades with any type of body
+func NewPostV1RecommendTradesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/recommend/trades")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -493,6 +904,62 @@ func NewPostRecommendTradesRequestWithBody(server string, contentType string, bo
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetV1TeamsIdRequest generates requests for GetV1TeamsId
+func NewGetV1TeamsIdRequest(server string, id string, params *GetV1TeamsIdParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/teams/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Week != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "week", runtime.ParamLocationQuery, *params.Week); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -540,35 +1007,51 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// PostComputeValuationsWithBodyWithResponse request with any body
-	PostComputeValuationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostComputeValuationsResponse, error)
+	// PostV1ComputeValuationsWithBodyWithResponse request with any body
+	PostV1ComputeValuationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1ComputeValuationsResponse, error)
 
-	PostComputeValuationsWithResponse(ctx context.Context, body PostComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostComputeValuationsResponse, error)
+	PostV1ComputeValuationsWithResponse(ctx context.Context, body PostV1ComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1ComputeValuationsResponse, error)
 
-	// GetHealthWithResponse request
-	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+	// GetV1HealthWithResponse request
+	GetV1HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetV1HealthResponse, error)
 
-	// PostIngestLeagueWithBodyWithResponse request with any body
-	PostIngestLeagueWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostIngestLeagueResponse, error)
+	// PostV1IngestLeagueWithBodyWithResponse request with any body
+	PostV1IngestLeagueWithBodyWithResponse(ctx context.Context, params *PostV1IngestLeagueParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1IngestLeagueResponse, error)
 
-	PostIngestLeagueWithResponse(ctx context.Context, body PostIngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*PostIngestLeagueResponse, error)
+	PostV1IngestLeagueWithResponse(ctx context.Context, params *PostV1IngestLeagueParams, body PostV1IngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1IngestLeagueResponse, error)
 
-	// GetRecommendFreeAgentsWithResponse request
-	GetRecommendFreeAgentsWithResponse(ctx context.Context, params *GetRecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*GetRecommendFreeAgentsResponse, error)
+	// GetV1JobsJobIdWithResponse request
+	GetV1JobsJobIdWithResponse(ctx context.Context, jobId string, reqEditors ...RequestEditorFn) (*GetV1JobsJobIdResponse, error)
 
-	// PostRecommendTradesWithBodyWithResponse request with any body
-	PostRecommendTradesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostRecommendTradesResponse, error)
+	// GetV1PlayersWithResponse request
+	GetV1PlayersWithResponse(ctx context.Context, params *GetV1PlayersParams, reqEditors ...RequestEditorFn) (*GetV1PlayersResponse, error)
 
-	PostRecommendTradesWithResponse(ctx context.Context, body PostRecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostRecommendTradesResponse, error)
+	// GetV1ProjectionsSourcesWithResponse request
+	GetV1ProjectionsSourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetV1ProjectionsSourcesResponse, error)
+
+	// GetV1RecommendFreeAgentsWithResponse request
+	GetV1RecommendFreeAgentsWithResponse(ctx context.Context, params *GetV1RecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*GetV1RecommendFreeAgentsResponse, error)
+
+	// PostV1RecommendTradesWithBodyWithResponse request with any body
+	PostV1RecommendTradesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1RecommendTradesResponse, error)
+
+	PostV1RecommendTradesWithResponse(ctx context.Context, body PostV1RecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1RecommendTradesResponse, error)
+
+	// GetV1TeamsIdWithResponse request
+	GetV1TeamsIdWithResponse(ctx context.Context, id string, params *GetV1TeamsIdParams, reqEditors ...RequestEditorFn) (*GetV1TeamsIdResponse, error)
 }
 
-type PostComputeValuationsResponse struct {
+type PostV1ComputeValuationsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON202      *struct {
+		JobId *string `json:"job_id,omitempty"`
+	}
+	JSON400 *BadRequest
 }
 
 // Status returns HTTPResponse.Status
-func (r PostComputeValuationsResponse) Status() string {
+func (r PostV1ComputeValuationsResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -576,14 +1059,14 @@ func (r PostComputeValuationsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostComputeValuationsResponse) StatusCode() int {
+func (r PostV1ComputeValuationsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetHealthResponse struct {
+type GetV1HealthResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *struct {
@@ -592,7 +1075,7 @@ type GetHealthResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r GetHealthResponse) Status() string {
+func (r GetV1HealthResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -600,20 +1083,21 @@ func (r GetHealthResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetHealthResponse) StatusCode() int {
+func (r GetV1HealthResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PostIngestLeagueResponse struct {
+type PostV1IngestLeagueResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *BadRequest
 }
 
 // Status returns HTTPResponse.Status
-func (r PostIngestLeagueResponse) Status() string {
+func (r PostV1IngestLeagueResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -621,21 +1105,22 @@ func (r PostIngestLeagueResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostIngestLeagueResponse) StatusCode() int {
+func (r PostV1IngestLeagueResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetRecommendFreeAgentsResponse struct {
+type GetV1JobsJobIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]FaSuggestion
+	JSON200      *JobStatus
+	JSON404      *NotFound
 }
 
 // Status returns HTTPResponse.Status
-func (r GetRecommendFreeAgentsResponse) Status() string {
+func (r GetV1JobsJobIdResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -643,21 +1128,95 @@ func (r GetRecommendFreeAgentsResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetRecommendFreeAgentsResponse) StatusCode() int {
+func (r GetV1JobsJobIdResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type PostRecommendTradesResponse struct {
+type GetV1PlayersResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PagedPlayers
+}
+
+// Status returns HTTPResponse.Status
+func (r GetV1PlayersResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetV1PlayersResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetV1ProjectionsSourcesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]struct {
+		Description *string `json:"description,omitempty"`
+		Id          *string `json:"id,omitempty"`
+		Name        *string `json:"name,omitempty"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetV1ProjectionsSourcesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetV1ProjectionsSourcesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetV1RecommendFreeAgentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PagedFaSuggestions
+	JSON400      *BadRequest
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetV1RecommendFreeAgentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetV1RecommendFreeAgentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PostV1RecommendTradesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]TradeSuggestion
+	JSON400      *BadRequest
+	JSON404      *NotFound
 }
 
 // Status returns HTTPResponse.Status
-func (r PostRecommendTradesResponse) Status() string {
+func (r PostV1RecommendTradesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -665,107 +1224,185 @@ func (r PostRecommendTradesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PostRecommendTradesResponse) StatusCode() int {
+func (r PostV1RecommendTradesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-// PostComputeValuationsWithBodyWithResponse request with arbitrary body returning *PostComputeValuationsResponse
-func (c *ClientWithResponses) PostComputeValuationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostComputeValuationsResponse, error) {
-	rsp, err := c.PostComputeValuationsWithBody(ctx, contentType, body, reqEditors...)
+type GetV1TeamsIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *TeamView
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetV1TeamsIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetV1TeamsIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// PostV1ComputeValuationsWithBodyWithResponse request with arbitrary body returning *PostV1ComputeValuationsResponse
+func (c *ClientWithResponses) PostV1ComputeValuationsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1ComputeValuationsResponse, error) {
+	rsp, err := c.PostV1ComputeValuationsWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostComputeValuationsResponse(rsp)
+	return ParsePostV1ComputeValuationsResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostComputeValuationsWithResponse(ctx context.Context, body PostComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostComputeValuationsResponse, error) {
-	rsp, err := c.PostComputeValuations(ctx, body, reqEditors...)
+func (c *ClientWithResponses) PostV1ComputeValuationsWithResponse(ctx context.Context, body PostV1ComputeValuationsJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1ComputeValuationsResponse, error) {
+	rsp, err := c.PostV1ComputeValuations(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostComputeValuationsResponse(rsp)
+	return ParsePostV1ComputeValuationsResponse(rsp)
 }
 
-// GetHealthWithResponse request returning *GetHealthResponse
-func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error) {
-	rsp, err := c.GetHealth(ctx, reqEditors...)
+// GetV1HealthWithResponse request returning *GetV1HealthResponse
+func (c *ClientWithResponses) GetV1HealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetV1HealthResponse, error) {
+	rsp, err := c.GetV1Health(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetHealthResponse(rsp)
+	return ParseGetV1HealthResponse(rsp)
 }
 
-// PostIngestLeagueWithBodyWithResponse request with arbitrary body returning *PostIngestLeagueResponse
-func (c *ClientWithResponses) PostIngestLeagueWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostIngestLeagueResponse, error) {
-	rsp, err := c.PostIngestLeagueWithBody(ctx, contentType, body, reqEditors...)
+// PostV1IngestLeagueWithBodyWithResponse request with arbitrary body returning *PostV1IngestLeagueResponse
+func (c *ClientWithResponses) PostV1IngestLeagueWithBodyWithResponse(ctx context.Context, params *PostV1IngestLeagueParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1IngestLeagueResponse, error) {
+	rsp, err := c.PostV1IngestLeagueWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostIngestLeagueResponse(rsp)
+	return ParsePostV1IngestLeagueResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostIngestLeagueWithResponse(ctx context.Context, body PostIngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*PostIngestLeagueResponse, error) {
-	rsp, err := c.PostIngestLeague(ctx, body, reqEditors...)
+func (c *ClientWithResponses) PostV1IngestLeagueWithResponse(ctx context.Context, params *PostV1IngestLeagueParams, body PostV1IngestLeagueJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1IngestLeagueResponse, error) {
+	rsp, err := c.PostV1IngestLeague(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostIngestLeagueResponse(rsp)
+	return ParsePostV1IngestLeagueResponse(rsp)
 }
 
-// GetRecommendFreeAgentsWithResponse request returning *GetRecommendFreeAgentsResponse
-func (c *ClientWithResponses) GetRecommendFreeAgentsWithResponse(ctx context.Context, params *GetRecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*GetRecommendFreeAgentsResponse, error) {
-	rsp, err := c.GetRecommendFreeAgents(ctx, params, reqEditors...)
+// GetV1JobsJobIdWithResponse request returning *GetV1JobsJobIdResponse
+func (c *ClientWithResponses) GetV1JobsJobIdWithResponse(ctx context.Context, jobId string, reqEditors ...RequestEditorFn) (*GetV1JobsJobIdResponse, error) {
+	rsp, err := c.GetV1JobsJobId(ctx, jobId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetRecommendFreeAgentsResponse(rsp)
+	return ParseGetV1JobsJobIdResponse(rsp)
 }
 
-// PostRecommendTradesWithBodyWithResponse request with arbitrary body returning *PostRecommendTradesResponse
-func (c *ClientWithResponses) PostRecommendTradesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostRecommendTradesResponse, error) {
-	rsp, err := c.PostRecommendTradesWithBody(ctx, contentType, body, reqEditors...)
+// GetV1PlayersWithResponse request returning *GetV1PlayersResponse
+func (c *ClientWithResponses) GetV1PlayersWithResponse(ctx context.Context, params *GetV1PlayersParams, reqEditors ...RequestEditorFn) (*GetV1PlayersResponse, error) {
+	rsp, err := c.GetV1Players(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostRecommendTradesResponse(rsp)
+	return ParseGetV1PlayersResponse(rsp)
 }
 
-func (c *ClientWithResponses) PostRecommendTradesWithResponse(ctx context.Context, body PostRecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostRecommendTradesResponse, error) {
-	rsp, err := c.PostRecommendTrades(ctx, body, reqEditors...)
+// GetV1ProjectionsSourcesWithResponse request returning *GetV1ProjectionsSourcesResponse
+func (c *ClientWithResponses) GetV1ProjectionsSourcesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetV1ProjectionsSourcesResponse, error) {
+	rsp, err := c.GetV1ProjectionsSources(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePostRecommendTradesResponse(rsp)
+	return ParseGetV1ProjectionsSourcesResponse(rsp)
 }
 
-// ParsePostComputeValuationsResponse parses an HTTP response from a PostComputeValuationsWithResponse call
-func ParsePostComputeValuationsResponse(rsp *http.Response) (*PostComputeValuationsResponse, error) {
+// GetV1RecommendFreeAgentsWithResponse request returning *GetV1RecommendFreeAgentsResponse
+func (c *ClientWithResponses) GetV1RecommendFreeAgentsWithResponse(ctx context.Context, params *GetV1RecommendFreeAgentsParams, reqEditors ...RequestEditorFn) (*GetV1RecommendFreeAgentsResponse, error) {
+	rsp, err := c.GetV1RecommendFreeAgents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetV1RecommendFreeAgentsResponse(rsp)
+}
+
+// PostV1RecommendTradesWithBodyWithResponse request with arbitrary body returning *PostV1RecommendTradesResponse
+func (c *ClientWithResponses) PostV1RecommendTradesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PostV1RecommendTradesResponse, error) {
+	rsp, err := c.PostV1RecommendTradesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostV1RecommendTradesResponse(rsp)
+}
+
+func (c *ClientWithResponses) PostV1RecommendTradesWithResponse(ctx context.Context, body PostV1RecommendTradesJSONRequestBody, reqEditors ...RequestEditorFn) (*PostV1RecommendTradesResponse, error) {
+	rsp, err := c.PostV1RecommendTrades(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePostV1RecommendTradesResponse(rsp)
+}
+
+// GetV1TeamsIdWithResponse request returning *GetV1TeamsIdResponse
+func (c *ClientWithResponses) GetV1TeamsIdWithResponse(ctx context.Context, id string, params *GetV1TeamsIdParams, reqEditors ...RequestEditorFn) (*GetV1TeamsIdResponse, error) {
+	rsp, err := c.GetV1TeamsId(ctx, id, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetV1TeamsIdResponse(rsp)
+}
+
+// ParsePostV1ComputeValuationsResponse parses an HTTP response from a PostV1ComputeValuationsWithResponse call
+func ParsePostV1ComputeValuationsResponse(rsp *http.Response) (*PostV1ComputeValuationsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostComputeValuationsResponse{
+	response := &PostV1ComputeValuationsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			JobId *string `json:"job_id,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil
 }
 
-// ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
-func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
+// ParseGetV1HealthResponse parses an HTTP response from a GetV1HealthWithResponse call
+func ParseGetV1HealthResponse(rsp *http.Response) (*GetV1HealthResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetHealthResponse{
+	response := &GetV1HealthResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -785,38 +1422,81 @@ func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
 	return response, nil
 }
 
-// ParsePostIngestLeagueResponse parses an HTTP response from a PostIngestLeagueWithResponse call
-func ParsePostIngestLeagueResponse(rsp *http.Response) (*PostIngestLeagueResponse, error) {
+// ParsePostV1IngestLeagueResponse parses an HTTP response from a PostV1IngestLeagueWithResponse call
+func ParsePostV1IngestLeagueResponse(rsp *http.Response) (*PostV1IngestLeagueResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostIngestLeagueResponse{
+	response := &PostV1IngestLeagueResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
 	}
 
 	return response, nil
 }
 
-// ParseGetRecommendFreeAgentsResponse parses an HTTP response from a GetRecommendFreeAgentsWithResponse call
-func ParseGetRecommendFreeAgentsResponse(rsp *http.Response) (*GetRecommendFreeAgentsResponse, error) {
+// ParseGetV1JobsJobIdResponse parses an HTTP response from a GetV1JobsJobIdWithResponse call
+func ParseGetV1JobsJobIdResponse(rsp *http.Response) (*GetV1JobsJobIdResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetRecommendFreeAgentsResponse{
+	response := &GetV1JobsJobIdResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []FaSuggestion
+		var dest JobStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetV1PlayersResponse parses an HTTP response from a GetV1PlayersWithResponse call
+func ParseGetV1PlayersResponse(rsp *http.Response) (*GetV1PlayersResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetV1PlayersResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PagedPlayers
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -827,15 +1507,85 @@ func ParseGetRecommendFreeAgentsResponse(rsp *http.Response) (*GetRecommendFreeA
 	return response, nil
 }
 
-// ParsePostRecommendTradesResponse parses an HTTP response from a PostRecommendTradesWithResponse call
-func ParsePostRecommendTradesResponse(rsp *http.Response) (*PostRecommendTradesResponse, error) {
+// ParseGetV1ProjectionsSourcesResponse parses an HTTP response from a GetV1ProjectionsSourcesWithResponse call
+func ParseGetV1ProjectionsSourcesResponse(rsp *http.Response) (*GetV1ProjectionsSourcesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PostRecommendTradesResponse{
+	response := &GetV1ProjectionsSourcesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []struct {
+			Description *string `json:"description,omitempty"`
+			Id          *string `json:"id,omitempty"`
+			Name        *string `json:"name,omitempty"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetV1RecommendFreeAgentsResponse parses an HTTP response from a GetV1RecommendFreeAgentsWithResponse call
+func ParseGetV1RecommendFreeAgentsResponse(rsp *http.Response) (*GetV1RecommendFreeAgentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetV1RecommendFreeAgentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PagedFaSuggestions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePostV1RecommendTradesResponse parses an HTTP response from a PostV1RecommendTradesWithResponse call
+func ParsePostV1RecommendTradesResponse(rsp *http.Response) (*PostV1RecommendTradesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PostV1RecommendTradesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -847,6 +1597,53 @@ func ParsePostRecommendTradesResponse(rsp *http.Response) (*PostRecommendTradesR
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetV1TeamsIdResponse parses an HTTP response from a GetV1TeamsIdWithResponse call
+func ParseGetV1TeamsIdResponse(rsp *http.Response) (*GetV1TeamsIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetV1TeamsIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TeamView
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
