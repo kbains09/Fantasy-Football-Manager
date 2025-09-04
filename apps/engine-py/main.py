@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_lineup.router, prefix=api)
 
 
+
     return app
 
 # uvicorn main:app --reload
