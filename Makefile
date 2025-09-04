@@ -186,3 +186,20 @@ test: ## run tests when available
 	else \
 		echo "Skipping Go tests"; \
 	fi
+
+.PHONY: db/up db/rev db/migrate db/heads db/seed
+
+db/up:        ## create tables from alembic heads
+	cd apps/engine-py && poetry run alembic upgrade head
+
+db/rev:       ## create a new empty revision: NAME=add_something
+	cd apps/engine-py && poetry run alembic revision -m "$(NAME)"
+
+db/migrate:   ## autogenerate revision from models: NAME=init
+	cd apps/engine-py && poetry run alembic revision --autogenerate -m "$(NAME)"
+
+db/heads:     ## show current heads
+	cd apps/engine-py && poetry run alembic heads
+
+db/seed:      ## optional seed (see script below)
+	cd apps/engine-py && poetry run python -m seeds.demo
