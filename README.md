@@ -1,173 +1,351 @@
 # FantasyManager
 
-**FantasyManager** is a full-stack project for managing fantasy football leagues. It allows you to manage teams, free agents, and generate trade/signing suggestions using outside APIs for news and stats.
+[![License](https://img.shields.io/github/license/kbains09/FantasyManager.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.13-blue.svg)
+![Go](https://img.shields.io/badge/go-1.22-blue.svg)
+![Postgres](https://img.shields.io/badge/db-PostgreSQL-informational.svg)
+![Redis](https://img.shields.io/badge/cache-Redis-red.svg)
+![Devcontainer](https://img.shields.io/badge/devcontainer-ready-success.svg)
 
-The project uses:
-
-* **Python backend (Engine)** – Core API & business logic
-* **Go client** – Example service client for interacting with the Engine
-* **PostgreSQL** – Persistent storage
-* **Redis** – Caching & pub/sub
-* **Devcontainers + Docker** – Standardized local development environment
-
----
-
-## Quick Start
-
-### 1. Prerequisites
-
-* [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/)
-* [Visual Studio Code](https://code.visualstudio.com/) with **Dev Containers** extension
-* Make (for running commands)
+FantasyManager is a **full-stack fantasy football platform**.  
+It manages leagues, teams, rosters, and free agents — and is designed to eventually power **trade/signing suggestions** from external stats, projections, and news APIs.
 
 ---
 
-### 2. Clone the Repository
+## **Table of Contents**
 
-```bash
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Clone the Repository](#clone-the-repository)
+  - [Open in Devcontainer](#open-in-devcontainer)
+  - [Bootstrap the Environment](#bootstrap-the-environment)
+  - [Running the Engine (Python API)](#running-the-engine-python-api)
+  - [Running the Go Client](#running-the-go-client)
+- [Configuration](#configuration)
+- [Project Structure](#project-structure)
+- [API](#api)
+- [Development Workflow](#development-workflow)
+- [Roadmap](#roadmap)
+- [Design Notes](#design-notes)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## **Features**
+
+### **Currently Implemented**
+- Devcontainer environment (Python, Go, Postgres, Redis)
+- Python Engine service exposed via HTTP API
+- Go client SDK for typed Engine consumption
+- PostgreSQL + Redis wired into development environment
+- Makefile-based workflow automation (bootstrap, lint, test, codegen)
+- Complete OpenAPI spec for the Engine (`engine.openapi.yaml`)
+
+### **Planned / Roadmap**
+- League + team management (rosters, lineups, positional structures)
+- Free agent pool tracking per league
+- Waiver logic (claims, priorities)
+- Trade/signing suggestion engine using:
+  - Player projections  
+  - News/sentiment  
+  - Depth chart + positional scarcity  
+- First-pass Web UI for owners/managers (Go + HTMX or React)
+- Integrations with ESPN/Yahoo/Sleeper APIs
+- CI/CD pipelines for automated testing + deployment
+
+---
+
+## **Architecture**
+
+At a high level, FantasyManager looks like this:
+
+```mermaid
+flowchart LR
+  subgraph Client Layer
+    UI[Web UI / CLI]
+    GoClient[Go Client SDK]
+  end
+
+  subgraph Engine Layer
+    API[Engine API (Python)]
+    Logic[Domain Logic<br/>valuation, trades, rosters]
+  end
+
+  subgraph Data Layer
+    DB[(PostgreSQL)]
+    Cache[(Redis)]
+  end
+
+  UI -->|HTTP/JSON| API
+  GoClient -->|HTTP/JSON| API
+
+  API --> Logic
+  Logic --> DB
+  Logic --> Cache
+Engine (Python): domain logic + HTTP API
+
+Go Client: typed client for Go apps/CLIs
+
+Postgres: persistent storage (leagues, teams, players)
+
+Redis: caching + pub/sub + API rate limiting
+
+Tech Stack
+Languages
+Python 3.13
+
+Go 1.22
+
+Backend
+Python Engine (FastAPI-style)
+
+Client SDK
+Go client (packages/clients/go)
+
+Data Stores
+PostgreSQL
+
+Redis
+
+Tooling
+Docker & Docker Compose
+
+VS Code Devcontainers
+
+Makefile automation
+
+OpenAPI spec (engine.openapi.yaml)
+
+Future: GitHub Actions CI/CD
+
+Getting Started
+Prerequisites
+Docker & Docker Compose
+
+Visual Studio Code with Dev Containers extension
+
+make installed on your system
+
+Clone the Repository
+bash
+Copy code
 git clone https://github.com/kbains09/FantasyManager.git
 cd FantasyManager
-```
+Open in Devcontainer
+Open the folder in VS Code.
 
----
+Select “Reopen in Container” when prompted.
 
-### 3. Open in Devcontainer
+The devcontainer will automatically install:
 
-1. Open the repo in **VS Code**
-2. When prompted, “Reopen in Container” (or run `Dev Containers: Reopen in Container` from Command Palette).
-3. This will build and start a container with:
+Python 3.13
 
-   * Python 3.13
-   * Go 1.22
-   * Postgres & Redis services
-   * All dependencies from `pyproject.toml` / `go.mod`
+Go 1.22
 
----
+Postgres & Redis
 
-### 4. Bootstrap the Environment
+All dependencies from Poetry & Go modules
 
-Run inside the devcontainer:
+Bootstrap the Environment
+Inside the devcontainer:
 
-```bash
+bash
+Copy code
 make bootstrap
-```
+What this does:
 
-This will:
+Installs Python deps
 
-* Install Python deps
-* Install Go deps
-* Run DB migrations
-* Start local services
+Installs Go deps
 
----
+Runs migrations
 
-### 5. Running the Backend (Engine)
+Starts Postgres + Redis containers
 
-Start the Python API server:
-
-```bash
+Running the Engine (Python API)
+bash
+Copy code
 make run-engine
-```
+Default location:
 
-By default, it runs at:
-
-```
+arduino
+Copy code
 http://localhost:8000
-```
-
 Health checks:
 
-* `GET /health/live` → `{"ok": true}`
-* `GET /health/ready` → `{"ok": true}`
+GET /health/live → {"ok": true}
 
----
+GET /health/ready → {"ok": true}
 
-### 6. Running the Go Client
-
-Build and run the Go client:
-
-```bash
+Running the Go Client
+bash
+Copy code
 cd packages/clients/go
 go run ./cmd/client/main.go
-```
+Import path inside Go code:
 
-The client talks to the Engine using the module import path:
-
-```go
+go
+Copy code
 import engineapi "github.com/kbains09/FantasyManager/packages/clients/go"
-```
-
----
-
-### 7. Database & Caching
-
-Postgres and Redis are started as part of the devcontainer.
-Default connection strings:
-
-```
+Configuration
+Default connection strings (devcontainer):
+nginx
+Copy code
 Postgres → postgresql://dev:dev@localhost:5432/fantasy
 Redis    → redis://localhost:6379/0
-```
+Override with environment variables:
+DATABASE_URL
 
----
+REDIS_URL
 
-## Project Structure
+ENGINE_PORT
 
-```
-.devcontainer/        # Dev container configs
+ENGINE_LOG_LEVEL
+
+TODO: Add docs/CONFIGURATION.md with all options & defaults.
+
+Project Structure
+text
+Copy code
+.devcontainer/          # Devcontainer configs
+.vscode/                # Editor recommendations
+apis/                   # OpenAPI specs
+apps/                   # Future UI / extra services
+engine/                 # Python backend (domain logic + API)
+infra/                  # Infra-as-code (Docker, Cloud)
+migrations/             # Database migrations
 packages/
-  clients/go/         # Go client for Engine API
-engine/               # Python backend (FastAPI or similar)
-migrations/           # Database migrations
-Makefile              # Common commands
-```
+  clients/
+    go/                 # Go client SDK + CLI example
+Makefile                # Workflow automation
+README.md               # Project documentation
+API
+The Engine API is described using:
 
----
+bash
+Copy code
+apis/engine.openapi.yaml
+Regenerate the Go client when the API changes:
 
-## Common Commands
-
-```bash
-make bootstrap     # install deps, run setup
-make run-engine    # start Python backend
-make run-client    # run Go client
-make lint          # run linters (ruff, go vet, etc.)
-make test          # run all tests
-```
-
----
-
-## API
-
-The Engine API is described in **`engine.openapi.yaml`**.
-To regenerate the Go client after updating the spec:
-
-```bash
+bash
+Copy code
 make gen
-```
+TODO:
 
----
+Add /docs + /openapi.json endpoints
 
-## Roadmap
+Add docs/API.md with detailed examples
 
-* [ ] Team management
-* [ ] Free agent pool tracking
-* [ ] Trade & signing suggestions (stats/news APIs)
-* [ ] Web UI
+Development Workflow
+Useful commands
+bash
+Copy code
+make bootstrap     # install deps + initial setup
+make run-engine    # run Python Engine API
+make run-client    # run Go example client
+make lint          # run ruff + go vet + format checks
+make test          # run test suites
+make gen           # regenerate Go client from OpenAPI
+Recommended workflow
+Modify OpenAPI (engine.openapi.yaml)
 
----
+Run make gen to regenerate Go client
 
-## Contributing
+Implement/update Python endpoint
 
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit changes (`git commit -m 'Add feature'`)
-4. Push to branch (`git push origin feature/my-feature`)
-5. Open a PR
+Write/update tests
 
----
+Run make lint test before pushing
 
-## License
+Roadmap
+Team & League Management
+Create/join leagues
 
+Manage rosters and starting lineups
+
+Free Agents & Waivers
+Per-league player pools
+
+Waiver claims + rules
+
+Trade & Signing Suggestions
+Player value modeling
+
+Depth analysis
+
+Positional scarcity scoring
+
+News + projection data ingestion
+
+Web UI
+League dashboard
+
+Team pages
+
+Trade suggestions page
+
+Infrastructure
+GitHub Actions CI
+
+Docker image publishing
+
+Cloud Run / GKE deploy pipelines
+
+Design Notes
+Goals
+
+Treat fantasy football as a real domain model, not a script collection
+
+Provide a reusable Engine usable from multiple clients
+
+Use OpenAPI-first development to avoid inconsistencies
+
+Key Trade-offs
+
+Python for Engine → flexibility & rich libraries
+
+Go for clients → strongly-typed consumer SDKs
+
+Postgres for relational consistency
+
+Redis for fast ephemeral data
+
+Risks
+
+API rate limits → use caching, retries, backoff
+
+Complex trade logic → enforce modular design + tests
+
+Scope creep → focus on differentiating features
+
+Contributing
+Contributions welcome!
+
+Fork the repo
+
+Create a feature branch
+
+bash
+Copy code
+git checkout -b feature/my-feature
+Commit changes
+
+bash
+Copy code
+git commit -m "Add feature"
+Push to your fork
+
+Open a Pull Request
+
+Before submitting, please run:
+
+bash
+Copy code
+make lint test
+License
 This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
 See the LICENSE file for details.
----
