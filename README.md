@@ -86,6 +86,7 @@ flowchart LR
   API --> Logic
   Logic --> DB
   Logic --> Cache
+  ```
 Engine (Python): domain logic + HTTP API
 
 Go Client: typed client for Go apps/CLIs
