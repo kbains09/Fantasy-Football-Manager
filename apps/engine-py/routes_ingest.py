@@ -1,35 +1,70 @@
+"""League data ingestion endpoints."""
+from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 
-router = APIRouter()
+router = APIRouter(tags=["ingest"])
 
-class Team(BaseModel):
+
+# -----------------------------------------------------------------------------
+# Request Models
+# -----------------------------------------------------------------------------
+
+
+class TeamIngest(BaseModel):
+    """Team data for ingestion."""
+
     id: str
     name: str
     manager: Optional[str] = None
 
-class Roster(BaseModel):
+
+class RosterIngest(BaseModel):
+    """Roster slot data for ingestion."""
+
     team_id: str
     player_id: str
-    slot: str = Field(description="QB/RB/WR/TE/FLEX/BN/IR")
+    slot: str = Field(description="Lineup slot: QB/RB/WR/TE/FLEX/BN/IR")
 
-class LeagueIngest(BaseModel):
-    teams: List[Team]
-    rosters: List[Roster]
+
+class LeagueIngestRequest(BaseModel):
+    """Full league data payload for ingestion."""
+
+    teams: List[TeamIngest]
+    rosters: List[RosterIngest]
     settings: Dict[str, Any] = Field(
-        description="scoring_json, roster_rules_json, faab_budget, etc."
+        description="League settings: scoring_json, roster_rules_json, faab_budget, etc."
     )
 
-# For now we stash the last ingested payload (in-memory) so UI can proceed.
+
+# -----------------------------------------------------------------------------
+# In-Memory Store (MVP - will be replaced with database)
+# -----------------------------------------------------------------------------
+
 _LAST_INGEST: Dict[str, Any] = {}
 
+
+def get_last_ingest() -> Dict[str, Any]:
+    """Access the last ingested league data (for other modules)."""
+    return _LAST_INGEST
+
+
+# -----------------------------------------------------------------------------
+# Routes
+# -----------------------------------------------------------------------------
+
+
 @router.post("/ingest/league", status_code=204)
-def ingest_league(body: LeagueIngest):
+def ingest_league(body: LeagueIngestRequest) -> None:
+    """
+    Ingest league data (teams, rosters, settings).
+
+    Currently stores in-memory for demo purposes.
+    TODO: Upsert to database via Store class.
+    """
     try:
-        # TODO: upsert teams, rosters, settings into DB
         _LAST_INGEST.clear()
         _LAST_INGEST.update(body.model_dump())
-        return
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"ingest failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Ingest failed: {e}")
