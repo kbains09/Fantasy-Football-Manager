@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 apps/engine-py/.venv/
 apps/engine-py/.env
-apps/engine-py/alembic/versions/
 .poetry-cache/
 
 # Node
