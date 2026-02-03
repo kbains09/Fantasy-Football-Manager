@@ -4,11 +4,9 @@
 ![Python](https://img.shields.io/badge/python-3.13-blue.svg)
 ![Go](https://img.shields.io/badge/go-1.22-blue.svg)
 ![Postgres](https://img.shields.io/badge/db-PostgreSQL-informational.svg)
-![Redis](https://img.shields.io/badge/cache-Redis-red.svg)
 ![Devcontainer](https://img.shields.io/badge/devcontainer-ready-success.svg)
 
-FantasyManager is a **full-stack fantasy football platform**.  
-It manages leagues, teams, rosters, and free agents — and is designed to eventually power **trade/signing suggestions** from external stats, projections, and news APIs.
+FantasyManager is a **full-stack fantasy football platform** that manages leagues, teams, and rosters — and powers **trade and free agent suggestions** using player valuations and positional scarcity analysis.
 
 ---
 
@@ -18,16 +16,11 @@ It manages leagues, teams, rosters, and free agents — and is designed to event
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Clone the Repository](#clone-the-repository)
-  - [Open in Devcontainer](#open-in-devcontainer)
-  - [Bootstrap the Environment](#bootstrap-the-environment)
-  - [Running the Engine (Python API)](#running-the-engine-python-api)
-  - [Running the Go Client](#running-the-go-client)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
-- [API](#api)
+- [API Endpoints](#api-endpoints)
 - [Development Workflow](#development-workflow)
+- [Current Limitations](#current-limitations)
 - [Roadmap](#roadmap)
 - [Design Notes](#design-notes)
 - [Contributing](#contributing)
@@ -38,315 +31,339 @@ It manages leagues, teams, rosters, and free agents — and is designed to event
 ## **Features**
 
 ### **Currently Implemented**
-- Devcontainer environment (Python, Go, Postgres, Redis)
-- Python Engine service exposed via HTTP API
-- Go client SDK for typed Engine consumption
-- PostgreSQL + Redis wired into development environment
-- Makefile-based workflow automation (bootstrap, lint, test, codegen)
-- Complete OpenAPI spec for the Engine (`engine.openapi.yaml`)
+
+- **ESPN League Integration** — Sync teams, rosters, and players from your ESPN fantasy league
+- **Player Valuation Engine** — VORP (Value Over Replacement Player) calculations with positional scarcity adjustments
+- **Lineup Optimizer** — Recommends optimal starting lineup based on projected value
+- **Trade Suggestions** — Identifies beneficial 1-for-1 trade opportunities across league opponents
+- **Free Agent Recommendations** — Ranks available players by improvement to your team
+- **Background Job Queue** — Async valuation computation with job status tracking
+- **OpenAPI-First Design** — Complete spec with auto-generated Go client SDK
+- **Devcontainer Environment** — Zero-config development with Python, Go, and Postgres
 
 ### **Planned / Roadmap**
-- League + team management (rosters, lineups, positional structures)
-- Free agent pool tracking per league
-- Waiver logic (claims, priorities)
-- Trade/signing suggestion engine using:
-  - Player projections  
-  - News/sentiment  
-  - Depth chart + positional scarcity  
-- First-pass Web UI for owners/managers (Go + HTMX or React)
-- Integrations with ESPN/Yahoo/Sleeper APIs
-- CI/CD pipelines for automated testing + deployment
+
+- Multi-player trade package suggestions
+- Real projection data integration (FantasyPros, ESPN projections)
+- Waiver priority and FAAB bid recommendations
+- Web UI dashboard (Go + HTMX)
+- Yahoo/Sleeper league integrations
+- CI/CD pipelines
 
 ---
 
 ## **Architecture**
 
-At a high level, FantasyManager looks like this:
-
 ```mermaid
 flowchart LR
   subgraph Client Layer
-    UI[Web UI / CLI]
+    UI[Web UI]
     GoClient[Go Client SDK]
+    CLI[CLI Tools]
   end
 
   subgraph Engine Layer
-    API[Engine API (Python)]
-    Logic[Domain Logic<br/>valuation, trades, rosters]
+    API[Engine API<br/>FastAPI]
+    Logic[Domain Logic<br/>valuation, trades, lineup]
+    ESPN[ESPN Adapter]
   end
 
   subgraph Data Layer
-    DB[(PostgreSQL)]
-    Cache[(Redis)]
+    Store[In-Memory Store<br/>Demo Mode]
+    DB[(PostgreSQL<br/>Production)]
   end
 
   UI -->|HTTP/JSON| API
   GoClient -->|HTTP/JSON| API
+  CLI -->|HTTP/JSON| API
 
   API --> Logic
-  Logic --> DB
-  Logic --> Cache
-  ```
-Engine (Python): domain logic + HTTP API
+  API --> ESPN
+  Logic --> Store
+  Logic -.->|Future| DB
+```
 
-Go Client: typed client for Go apps/CLIs
+**Components:**
 
-Postgres: persistent storage (leagues, teams, players)
+- **Engine (Python/FastAPI)** — Core domain logic and HTTP API
+- **Go Client SDK** — Type-safe client generated from OpenAPI spec
+- **ESPN Adapter** — Pulls league data from ESPN Fantasy API
+- **Data Store** — In-memory for demos; SQLAlchemy models ready for production
 
-Redis: caching + pub/sub + API rate limiting
+---
 
-Tech Stack
-Languages
-Python 3.13
+## **Tech Stack**
 
-Go 1.22
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3.13, FastAPI, Pydantic |
+| Client SDK | Go 1.22, oapi-codegen |
+| Database | PostgreSQL (models defined, optional for demo) |
+| External APIs | ESPN Fantasy API via `espn-api` |
+| Tooling | Docker, Devcontainers, Poetry, Make |
 
-Backend
-Python Engine (FastAPI-style)
+---
 
-Client SDK
-Go client (packages/clients/go)
+## **Getting Started**
 
-Data Stores
-PostgreSQL
+### Prerequisites
 
-Redis
+- Docker & Docker Compose
+- Visual Studio Code with [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
+- `make` installed on your system
 
-Tooling
-Docker & Docker Compose
+### Clone the Repository
 
-VS Code Devcontainers
-
-Makefile automation
-
-OpenAPI spec (engine.openapi.yaml)
-
-Future: GitHub Actions CI/CD
-
-Getting Started
-Prerequisites
-Docker & Docker Compose
-
-Visual Studio Code with Dev Containers extension
-
-make installed on your system
-
-Clone the Repository
-bash
-Copy code
+```bash
 git clone https://github.com/kbains09/FantasyManager.git
 cd FantasyManager
-Open in Devcontainer
-Open the folder in VS Code.
+```
 
-Select “Reopen in Container” when prompted.
+### Open in Devcontainer
 
-The devcontainer will automatically install:
+1. Open the folder in VS Code
+2. Click "Reopen in Container" when prompted (or run `Dev Containers: Reopen in Container` from command palette)
+3. Wait for container to build — this installs Python 3.13, Go 1.22, Postgres, and all dependencies
 
-Python 3.13
+### Bootstrap the Environment
 
-Go 1.22
+Inside the devcontainer terminal:
 
-Postgres & Redis
-
-All dependencies from Poetry & Go modules
-
-Bootstrap the Environment
-Inside the devcontainer:
-
-bash
-Copy code
+```bash
 make bootstrap
-What this does:
+```
 
-Installs Python deps
+### Running the Engine
 
-Installs Go deps
+```bash
+# Via Makefile (recommended)
+make engine/run
 
-Runs migrations
+# Or directly
+cd apps/engine-py
+poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-Starts Postgres + Redis containers
+The API will be available at:
+- **API Base:** `http://localhost:8000`
+- **Swagger UI:** `http://localhost:8000/docs`
+- **Health Check:** `GET /v1/health` → `{"ok": true}`
 
-Running the Engine (Python API)
-bash
-Copy code
-make run-engine
-Default location:
+### Connect Your ESPN League (Optional)
 
-arduino
-Copy code
-http://localhost:8000
-Health checks:
+To use real league data instead of mock data:
 
-GET /health/live → {"ok": true}
+1. Create `apps/engine-py/.env`:
+```env
+ESPN_LEAGUE_ID=12345678
+ESPN_YEAR=2024
+ESPN_S2=your_espn_s2_cookie      # Required for private leagues
+ESPN_SWID={your-swid-guid}       # Required for private leagues
+```
 
-GET /health/ready → {"ok": true}
+2. Sync your league:
+```bash
+# Check connection
+curl http://localhost:8000/v1/sync/espn/check
 
-Running the Go Client
-bash
-Copy code
-cd packages/clients/go
-go run ./cmd/client/main.go
-Import path inside Go code:
+# Full sync
+curl -X POST http://localhost:8000/v1/sync/espn/full
+```
 
-go
-Copy code
-import engineapi "github.com/kbains09/FantasyManager/packages/clients/go"
-Configuration
-Default connection strings (devcontainer):
-nginx
-Copy code
-Postgres → postgresql://dev:dev@localhost:5432/fantasy
-Redis    → redis://localhost:6379/0
-Override with environment variables:
-DATABASE_URL
+---
 
-REDIS_URL
+## **Configuration**
 
-ENGINE_PORT
+### Environment Variables
 
-ENGINE_LOG_LEVEL
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ESPN_LEAGUE_ID` | Your ESPN league ID | For ESPN sync |
+| `ESPN_YEAR` | Season year (e.g., 2024) | For ESPN sync |
+| `ESPN_S2` | ESPN authentication cookie | Private leagues |
+| `ESPN_SWID` | ESPN user identifier | Private leagues |
+| `ESPN_MY_TEAM_ID` | Manual team ID override | Optional |
+| `DB_URL` | PostgreSQL connection string | Optional (uses mock data if not set) |
 
-TODO: Add docs/CONFIGURATION.md with all options & defaults.
+### Default Values (Devcontainer)
 
-Project Structure
-text
-Copy code
-.devcontainer/          # Devcontainer configs
-.vscode/                # Editor recommendations
-apis/                   # OpenAPI specs
-apps/                   # Future UI / extra services
-engine/                 # Python backend (domain logic + API)
-infra/                  # Infra-as-code (Docker, Cloud)
-migrations/             # Database migrations
+```
+Postgres → postgresql://dev:dev@postgres:5432/fantasy
+```
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for full details.
+
+---
+
+## **Project Structure**
+
+```
+.devcontainer/            # Devcontainer configuration
+apis/                     # OpenAPI specifications
+  engine.openapi.yaml     # Engine API spec
+apps/
+  engine-py/              # Python backend
+    adapters/espn/        # ESPN API integration
+    db/                   # SQLAlchemy models
+    jobs/                 # Background job queue
+    services/             # Domain logic
+      valuation.py        # VORP calculations
+      lineup.py           # Lineup optimization
+      recommend_fa.py     # Free agent suggestions
+      recommend_trade.py  # Trade suggestions
+    routes_*.py           # API route handlers
+    main.py               # FastAPI application
+  web-go/                 # Go web frontend (scaffolded)
+infra/                    # Docker Compose for deployment
 packages/
-  clients/
-    go/                 # Go client SDK + CLI example
-Makefile                # Workflow automation
-README.md               # Project documentation
-API
-The Engine API is described using:
+  clients/go/             # Generated Go client SDK
+Makefile                  # Build automation
+```
 
-bash
-Copy code
-apis/engine.openapi.yaml
-Regenerate the Go client when the API changes:
+---
 
-bash
-Copy code
-make gen
-TODO:
+## **API Endpoints**
 
-Add /docs + /openapi.json endpoints
+### Core Endpoints
 
-Add docs/API.md with detailed examples
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/health` | Health check |
+| `GET` | `/v1/players` | List players with filters |
+| `GET` | `/v1/teams/{id}` | Get team roster and valuations |
+| `GET` | `/v1/projections/sources` | List projection sources |
 
-Development Workflow
-Useful commands
-bash
-Copy code
-make bootstrap     # install deps + initial setup
-make run-engine    # run Python Engine API
-make run-client    # run Go example client
-make lint          # run ruff + go vet + format checks
-make test          # run test suites
-make gen           # regenerate Go client from OpenAPI
-Recommended workflow
-Modify OpenAPI (engine.openapi.yaml)
+### Recommendations
 
-Run make gen to regenerate Go client
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/recommend/free-agents?team_id=X` | Get FA pickup suggestions |
+| `POST` | `/v1/recommend/trades` | Get trade suggestions |
+| `POST` | `/v1/lineup/recommend` | Get optimal lineup |
 
-Implement/update Python endpoint
+### ESPN Integration
 
-Write/update tests
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/sync/espn/check` | Verify ESPN connection |
+| `POST` | `/v1/sync/espn/full` | Full league sync |
+| `POST` | `/v1/sync/espn/delta` | Incremental sync |
+| `GET` | `/v1/me/team` | Get your team ID |
 
-Run make lint test before pushing
+### Compute Jobs
 
-Roadmap
-Team & League Management
-Create/join leagues
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/compute/valuations` | Trigger valuation job |
+| `GET` | `/v1/jobs/{job_id}` | Get job status |
 
-Manage rosters and starting lineups
+Full API documentation available at `http://localhost:8000/docs` when running.
 
-Free Agents & Waivers
-Per-league player pools
+---
 
-Waiver claims + rules
+## **Development Workflow**
 
-Trade & Signing Suggestions
-Player value modeling
+### Useful Commands
 
-Depth analysis
+```bash
+make bootstrap      # Install dependencies
+make engine/run     # Run Python API server
+make gen            # Regenerate Go client from OpenAPI
+make lint           # Run linters (ruff + go vet)
+make test           # Run test suites
+make db/up          # Run database migrations
+```
 
-Positional scarcity scoring
+### Making API Changes
 
-News + projection data ingestion
+1. Update `apis/engine.openapi.yaml`
+2. Run `make gen` to regenerate Go client
+3. Implement the endpoint in `apps/engine-py/routes_*.py`
+4. Add/update tests
+5. Run `make lint test` before committing
 
-Web UI
-League dashboard
+---
 
-Team pages
+## **Current Limitations**
 
-Trade suggestions page
+This is an MVP/portfolio project with intentional simplifications:
 
-Infrastructure
-GitHub Actions CI
+| Limitation | Reason | Future Plan |
+|------------|--------|-------------|
+| **Mock data by default** | Zero-setup demos without DB | ESPN sync populates real data |
+| **1-for-1 trades only** | Keeps recommendations explainable | Multi-player packages planned |
+| **Mock projections** | No external API keys required | FantasyPros integration planned |
+| **No authentication** | Single-user local use | OAuth with ESPN/Google planned |
+| **In-memory job queue** | Simpler than Celery for MVP | Redis-backed queue planned |
 
-Docker image publishing
+---
 
-Cloud Run / GKE deploy pipelines
+## **Roadmap**
 
-Design Notes
-Goals
+### Near Term
+- [ ] Multi-player trade suggestions
+- [ ] Persistent database integration
+- [ ] Basic test suite
 
-Treat fantasy football as a real domain model, not a script collection
+### Medium Term
+- [ ] Real projection data (FantasyPros API)
+- [ ] Web UI with HTMX
+- [ ] FAAB bid recommendations
+- [ ] GitHub Actions CI
 
-Provide a reusable Engine usable from multiple clients
+### Long Term
+- [ ] Yahoo/Sleeper integrations
+- [ ] ML-powered trade acceptance prediction
+- [ ] Automated lineup optimization alerts
+- [ ] Mobile app
 
-Use OpenAPI-first development to avoid inconsistencies
+---
 
-Key Trade-offs
+## **Design Notes**
 
-Python for Engine → flexibility & rich libraries
+### Goals
 
-Go for clients → strongly-typed consumer SDKs
+- **Domain-First** — Model fantasy football properly, not as a script collection
+- **API-First** — OpenAPI spec is source of truth; clients are generated
+- **Portable Engine** — Core logic usable from CLI, web, mobile, or bots
 
-Postgres for relational consistency
+### Key Decisions
 
-Redis for fast ephemeral data
+| Decision | Rationale |
+|----------|-----------|
+| Python for Engine | Rich ecosystem for data/ML, fast prototyping |
+| Go for Clients | Type safety, single binary deployment |
+| In-memory default | Instant demos without infrastructure |
+| ESPN first | Most popular platform, good unofficial API |
 
-Risks
+### Risks & Mitigations
 
-API rate limits → use caching, retries, backoff
+| Risk | Mitigation |
+|------|------------|
+| ESPN API rate limits | Caching, exponential backoff |
+| Complex trade logic | Modular services, extensive testing |
+| Scope creep | Focus on differentiation (recommendations) |
 
-Complex trade logic → enforce modular design + tests
+See [docs/DESIGN_NOTES.md](docs/DESIGN_NOTES.md) for detailed architecture discussion.
 
-Scope creep → focus on differentiating features
+---
 
-Contributing
+## **Contributing**
+
 Contributions welcome!
 
-Fork the repo
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make changes and add tests
+4. Run `make lint test`
+5. Commit: `git commit -m "Add feature"`
+6. Push and open a Pull Request
 
-Create a feature branch
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-bash
-Copy code
-git checkout -b feature/my-feature
-Commit changes
+---
 
-bash
-Copy code
-git commit -m "Add feature"
-Push to your fork
+## **License**
 
-Open a Pull Request
-
-Before submitting, please run:
-
-bash
-Copy code
-make lint test
-License
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
-See the LICENSE file for details.
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
+See the [LICENSE](LICENSE) file for details.
