@@ -43,8 +43,14 @@ bootstrap: ## install deps if present (Poetry + Go)
 .PHONY: tools
 tools: ## install dev tools (oapi-codegen, golangci-lint)
 	@echo "==> Installing dev tools"
-	@which oapi-codegen >/dev/null 2>&1 || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-	@which golangci-lint >/dev/null 2>&1 || (curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$HOME/go/bin v1.60.0)
+	@GOBIN_DIR="$$(go env GOPATH)/bin"; \
+	mkdir -p "$$GOBIN_DIR"; \
+	export PATH="$$GOBIN_DIR:$$PATH"; \
+	command -v oapi-codegen >/dev/null 2>&1 || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest; \
+	command -v golangci-lint >/dev/null 2>&1 || (curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$$GOBIN_DIR" v1.60.0); \
+	echo "==> Tools available:"; \
+	command -v oapi-codegen; \
+	command -v golangci-lint
 
 # ---------------------------------------------------------------------
 # OpenAPI -> generated clients
@@ -60,12 +66,14 @@ gen-go-init:
 		( cd packages/clients/go && go mod init github.com/kbains09/FantasyManager/packages/clients/go ); \
 	fi
 
-gen-go: gen-go-init ## generate Go client from $(OPENAPI)
+gen-go: tools gen-go-init ## generate Go client from $(OPENAPI)
 	@if [ ! -f "$(OPENAPI)" ]; then echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; fi
 	@echo "==> Generating Go client from $(OPENAPI)"
 	@mkdir -p packages/clients/go
-	@if [ -f "$(OAPI_CFG)" ]; then \
-		oapi-codegen -config $(OAPI_CFG) $(OPENAPI); \
+	@GOBIN_DIR="$$(go env GOPATH)/bin"; \
+	export PATH="$$GOBIN_DIR:$$PATH"; \
+	if [ -f "$(OAPI_CFG)" ]; then \
+		oapi-codegen -config $(OAPI_CFG) -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
 	else \
 		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
 	fi
