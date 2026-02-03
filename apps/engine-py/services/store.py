@@ -1,4 +1,12 @@
 # apps/engine-py/services/store.py
+"""
+SQLAlchemy-based persistent store.
+
+NOTE: This module defines the production data access layer but is not
+currently wired to API routes. Routes use services/mock_data.py for
+demonstration purposes. See CONTRIBUTING.md for migration path.
+"""
+
 from __future__ import annotations
 from typing import Iterable, Sequence
 from sqlalchemy import select, delete

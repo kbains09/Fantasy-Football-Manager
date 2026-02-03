@@ -1,3 +1,14 @@
+"""
+In-memory mock data store for demonstration purposes.
+
+This module provides deterministic sample data that allows the API
+to function without database setup. For production use, this would
+be replaced with database queries via services/store.py.
+
+The ESPN sync adapter (adapters/espn/sync.py) can populate this
+store with real league data at runtime.
+"""
+
 from __future__ import annotations
 from typing import Dict, Any, List, Optional
 
