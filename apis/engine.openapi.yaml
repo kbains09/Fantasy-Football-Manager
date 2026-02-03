@@ -2,6 +2,7 @@ openapi: 3.0.3
 info:
   title: FantasyManager Engine
   version: 1.0.0
+
 servers:
   - url: http://engine:8000
 
@@ -10,13 +11,15 @@ paths:
     get:
       summary: Health check
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 type: object
-                properties: { ok: { type: boolean } }
+                properties:
+                  ok:
+                    type: boolean
 
   /v1/ingest/league:
     post:
@@ -25,26 +28,42 @@ paths:
         - in: header
           name: Idempotency-Key
           required: false
-          schema: { type: string }
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LeagueIngest' }
+            schema:
+              $ref: "#/components/schemas/LeagueIngest"
             examples:
               minimal:
                 value:
                   teams:
-                    - { id: "t-001", name: "Kirat FC", manager: "Kirat" }
+                    - id: "t-001"
+                      name: "Kirat FC"
+                      manager: "Kirat"
                   rosters:
-                    - { team_id: "t-001", player_id: "p-123", slot: "RB" }
+                    - team_id: "t-001"
+                      player_id: "p-123"
+                      slot: "RB"
                   settings:
-                    scoring_json: { pass_td: 4, rush_td: 6 }
-                    roster_rules_json: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, BN: 6 }
+                    scoring_json:
+                      pass_td: 4
+                      rush_td: 6
+                    roster_rules_json:
+                      QB: 1
+                      RB: 2
+                      WR: 2
+                      TE: 1
+                      FLEX: 1
+                      BN: 6
                     faab_budget: 200
       responses:
-        '204': { description: Accepted }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        "204":
+          description: Accepted
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /v1/compute/valuations:
     post:
@@ -56,22 +75,30 @@ paths:
             schema:
               type: object
               properties:
-                week: { type: integer, minimum: 1, maximum: 18 }
-                source: { type: string, description: "projection source id" }
+                week:
+                  type: integer
+                  minimum: 1
+                  maximum: 18
+                source:
+                  type: string
+                  description: projection source id
       responses:
-        '202':
+        "202":
           description: Job accepted
           headers:
             Location:
               description: URL of the submitted job
-              schema: { type: string }
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  job_id: { type: string }
-        '400': { $ref: '#/components/responses/BadRequest' }
+                  job_id:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /v1/jobs/{job_id}:
     get:
@@ -80,15 +107,17 @@ paths:
         - in: path
           name: job_id
           required: true
-          schema: { type: string }
+          schema:
+            type: string
       responses:
-        '200':
+        "200":
           description: Job status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JobStatus'
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/JobStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/recommend/free-agents:
     get:
@@ -97,25 +126,37 @@ paths:
         - in: query
           name: team_id
           required: true
-          schema: { type: string }
+          schema:
+            type: string
         - in: query
           name: week
-          schema: { type: integer, minimum: 1, maximum: 18 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 18
         - in: query
           name: limit
-          schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
         - in: query
           name: cursor
-          schema: { type: string, description: "opaque paging cursor" }
+          schema:
+            type: string
+            description: opaque paging cursor
       responses:
-        '200':
+        "200":
           description: Ranked suggestions
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PagedFaSuggestions'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/PagedFaSuggestions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/recommend/trades:
     post:
@@ -126,22 +167,37 @@ paths:
           application/json:
             schema:
               type: object
-              required: [team_id]
+              required:
+                - team_id
               properties:
-                team_id: { type: string }
-                week: { type: integer, minimum: 1, maximum: 18 }
-                max_offers_per_opponent: { type: integer, default: 2, minimum: 1, maximum: 10 }
-                aggressiveness: { type: string, enum: [conservative, neutral, aggressive], default: neutral }
+                team_id:
+                  type: string
+                week:
+                  type: integer
+                  minimum: 1
+                  maximum: 18
+                max_offers_per_opponent:
+                  type: integer
+                  default: 2
+                  minimum: 1
+                  maximum: 10
+                aggressiveness:
+                  type: string
+                  enum: [conservative, neutral, aggressive]
+                  default: neutral
       responses:
-        '200':
+        "200":
           description: Trade suggestions
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/TradeSuggestion' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
+                items:
+                  $ref: "#/components/schemas/TradeSuggestion"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/players:
     get:
@@ -149,26 +205,37 @@ paths:
       parameters:
         - in: query
           name: pos
-          schema: { type: string, enum: [QB,RB,WR,TE,K,DST,FLX] }
+          schema:
+            type: string
+            enum: [QB, RB, WR, TE, K, DST, FLX]
         - in: query
           name: team
-          schema: { type: string }
+          schema:
+            type: string
         - in: query
           name: week
-          schema: { type: integer, minimum: 1, maximum: 18 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 18
         - in: query
           name: limit
-          schema: { type: integer, default: 50, minimum: 1, maximum: 200 }
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
         - in: query
           name: cursor
-          schema: { type: string }
+          schema:
+            type: string
       responses:
-        '200':
+        "200":
           description: Players list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PagedPlayers'
+                $ref: "#/components/schemas/PagedPlayers"
 
   /v1/teams/{id}:
     get:
@@ -177,24 +244,29 @@ paths:
         - in: path
           name: id
           required: true
-          schema: { type: string }
+          schema:
+            type: string
         - in: query
           name: week
-          schema: { type: integer, minimum: 1, maximum: 18 }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 18
       responses:
-        '200':
+        "200":
           description: Team view
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TeamView'
-        '404': { $ref: '#/components/responses/NotFound' }
+                $ref: "#/components/schemas/TeamView"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/projections/sources:
     get:
       summary: List available projection sources
       responses:
-        '200':
+        "200":
           description: Sources
           content:
             application/json:
@@ -203,9 +275,154 @@ paths:
                 items:
                   type: object
                   properties:
-                    id: { type: string }
-                    name: { type: string }
-                    description: { type: string }
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    description:
+                      type: string
+
+  /v1/sync/espn/check:
+    get:
+      summary: Check ESPN connection and detect your team
+      description: |
+        Validates ESPN credentials and returns league info.
+        Attempts to detect your team based on SWID cookie.
+      responses:
+        "200":
+          description: Connection successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  league_id:
+                    type: integer
+                  year:
+                    type: integer
+                  detected_my_team_id:
+                    type: string
+                    nullable: true
+                  teams:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        owner_ids:
+                          type: array
+                          items:
+                            type: string
+                  needs_private_cookies:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          description: ESPN API not available
+
+  /v1/sync/espn/full:
+    post:
+      summary: Full sync from ESPN
+      description: Fetches all teams, rosters, and players from ESPN league.
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          description: ESPN API not available
+
+  /v1/sync/espn/delta:
+    post:
+      summary: Delta sync from ESPN
+      description: Currently performs full sync. Reserved for incremental updates.
+      responses:
+        "200":
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "503":
+          description: ESPN API not available
+
+  /v1/me/team:
+    get:
+      summary: Get your team ID
+      description: Returns your team based on SWID or ESPN_MY_TEAM_ID override.
+      responses:
+        "200":
+          description: Team found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team_id:
+                    type: string
+                  source:
+                    type: string
+                    enum: [swid, env]
+                  league_id:
+                    type: integer
+                  year:
+                    type: integer
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/lineup/recommend:
+    post:
+      summary: Get optimal lineup recommendation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [team_id]
+              properties:
+                team_id:
+                  type: string
+                week:
+                  type: integer
+                  minimum: 1
+                  maximum: 18
+      responses:
+        "200":
+          description: Lineup recommendation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  starters:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slot:
+                          type: string
+                        player:
+                          $ref: "#/components/schemas/Player"
+                        valuation:
+                          $ref: "#/components/schemas/PlayerValuation"
+                  bench:
+                    type: array
+                    items:
+                      type: object
+                  total_vorp:
+                    type: number
 
 components:
   responses:
@@ -213,20 +430,26 @@ components:
       description: Bad request
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: "#/components/schemas/Error"
+
     NotFound:
       description: Not found
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: "#/components/schemas/Error"
 
   schemas:
     Error:
       type: object
       required: [error]
       properties:
-        error: { type: string }
-        details: { type: object, additionalProperties: true }
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
 
     LeagueIngest:
       type: object
@@ -234,116 +457,192 @@ components:
       properties:
         teams:
           type: array
-          items: { $ref: '#/components/schemas/Team' }
+          items:
+            $ref: "#/components/schemas/Team"
         rosters:
           type: array
-          items: { $ref: '#/components/schemas/Roster' }
+          items:
+            $ref: "#/components/schemas/Roster"
         settings:
           type: object
-          description: "scoring_json, roster_rules_json, faab_budget, etc."
+          description: scoring_json, roster_rules_json, faab_budget, etc.
           additionalProperties: true
 
     Team:
       type: object
       required: [id, name]
       properties:
-        id: { type: string }
-        name: { type: string }
-        manager: { type: string }
+        id:
+          type: string
+        name:
+          type: string
+        manager:
+          type: string
 
     Roster:
       type: object
       required: [team_id, player_id, slot]
       properties:
-        team_id: { type: string }
-        player_id: { type: string }
-        slot: { type: string, description: "QB/RB/WR/TE/FLEX/BN/IR" }
+        team_id:
+          type: string
+        player_id:
+          type: string
+        slot:
+          type: string
+          description: QB/RB/WR/TE/FLEX/BN/IR
 
     Player:
       type: object
       required: [id, name, pos, team]
       properties:
-        id: { type: string }
-        ext_id: { type: string, description: "external provider id" }
-        name: { type: string }
-        pos: { type: string, enum: [QB,RB,WR,TE,K,DST] }
-        team: { type: string }
-        bye_week: { type: integer, minimum: 1, maximum: 18 }
-        status: { type: string }
+        id:
+          type: string
+        ext_id:
+          type: string
+          description: external provider id
+        name:
+          type: string
+        pos:
+          type: string
+          enum: [QB, RB, WR, TE, K, DST]
+        team:
+          type: string
+        bye_week:
+          type: integer
+          minimum: 1
+          maximum: 18
+        status:
+          type: string
 
     PlayerValuation:
       type: object
       properties:
-        player_id: { type: string }
-        week: { type: integer }
-        vorp: { type: number, format: float }
-        rank_pos: { type: integer }
-        rank_overall: { type: integer }
+        player_id:
+          type: string
+        week:
+          type: integer
+        vorp:
+          type: number
+          format: float
+        rank_pos:
+          type: integer
+        rank_overall:
+          type: integer
 
     PagedPlayers:
       type: object
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/Player' }
-        cursor: { type: string, nullable: true }
+          items:
+            $ref: "#/components/schemas/Player"
+        cursor:
+          type: string
+          nullable: true
 
     FaSuggestion:
       type: object
       required: [player_id, delta_value]
       properties:
-        player_id: { type: string }
-        delta_value: { type: number, format: float }
-        suggested_faab: { type: integer }
-        rationale: { type: string }
+        player_id:
+          type: string
+        delta_value:
+          type: number
+          format: float
+        suggested_faab:
+          type: integer
+        rationale:
+          type: string
 
     PagedFaSuggestions:
       type: object
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/FaSuggestion' }
-        cursor: { type: string, nullable: true }
+          items:
+            $ref: "#/components/schemas/FaSuggestion"
+        cursor:
+          type: string
+          nullable: true
 
     TradeSuggestion:
       type: object
       required: [opponent_team_id, give, get, delta_you, delta_them]
       properties:
-        opponent_team_id: { type: string }
+        opponent_team_id:
+          type: string
         give:
           type: array
-          items: { type: string, description: "player_id" }
+          items:
+            type: string
+            description: player_id
         get:
           type: array
-          items: { type: string, description: "player_id" }
-        delta_you: { type: number, format: float }
-        delta_them: { type: number, format: float }
-        rationale: { type: string }
+          items:
+            type: string
+            description: player_id
+        delta_you:
+          type: number
+          format: float
+        delta_them:
+          type: number
+          format: float
+        rationale:
+          type: string
 
     TeamView:
       type: object
       properties:
-        team: { $ref: '#/components/schemas/Team' }
+        team:
+          $ref: "#/components/schemas/Team"
         roster:
           type: array
           items:
             type: object
             properties:
-              player: { $ref: '#/components/schemas/Player' }
-              slot: { type: string }
-              valuation: { $ref: '#/components/schemas/PlayerValuation' }
-        team_score: { type: number, format: float }
+              player:
+                $ref: "#/components/schemas/Player"
+              slot:
+                type: string
+              valuation:
+                $ref: "#/components/schemas/PlayerValuation"
+        team_score:
+          type: number
+          format: float
 
     JobStatus:
       type: object
       properties:
-        id: { type: string }
-        status: { type: string, enum: [queued, running, done, failed] }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, done, failed]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
         result_ref:
           type: object
           nullable: true
-          description: "Optional link to affected resource(s)"
+          description: Optional link to affected resource(s)
           additionalProperties: true
-        error: { $ref: '#/components/schemas/Error' }
+        error:
+          $ref: "#/components/schemas/Error"
+
+    SyncResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        synced:
+          type: object
+          properties:
+            teams:
+              type: integer
+            rosters:
+              type: integer
+            players:
+              type: integer
