@@ -1,5 +1,10 @@
 SHELL := /bin/bash
 
+# ---------------------------------------------------------------------
+# Global Go bin dir + PATH so installed tools are found in ALL targets
+GOBIN_DIR := $(shell go env GOPATH)/bin
+export PATH := $(GOBIN_DIR):$(PATH)
+
 # --- Paths & helpers ---
 PY_DIR := apps/engine-py
 GO_DIR := apps/web-go
@@ -43,14 +48,23 @@ bootstrap: ## install deps if present (Poetry + Go)
 .PHONY: tools
 tools: ## install dev tools (oapi-codegen, golangci-lint)
 	@echo "==> Installing dev tools"
-	@GOBIN_DIR="$$(go env GOPATH)/bin"; \
-	mkdir -p "$$GOBIN_DIR"; \
-	export PATH="$$GOBIN_DIR:$$PATH"; \
-	command -v oapi-codegen >/dev/null 2>&1 || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest; \
-	command -v golangci-lint >/dev/null 2>&1 || (curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$$GOBIN_DIR" v1.60.0); \
-	echo "==> Tools available:"; \
-	command -v oapi-codegen; \
-	command -v golangci-lint
+	@echo " • Go bin: $(GOBIN_DIR)"
+	@mkdir -p "$(GOBIN_DIR)"
+	@if ! command -v oapi-codegen >/dev/null 2>&1; then \
+		echo " • Installing oapi-codegen"; \
+		go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest; \
+	else \
+		echo " • oapi-codegen already installed"; \
+	fi
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo " • Installing golangci-lint (go install)"; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.0; \
+	else \
+		echo " • golangci-lint already installed"; \
+	fi
+	@echo "==> Tools available:"
+	@command -v oapi-codegen || true
+	@command -v golangci-lint || echo " ! golangci-lint not found on PATH"
 
 # ---------------------------------------------------------------------
 # OpenAPI -> generated clients
@@ -70,9 +84,7 @@ gen-go: tools gen-go-init ## generate Go client from $(OPENAPI)
 	@if [ ! -f "$(OPENAPI)" ]; then echo "OpenAPI spec not found at $(OPENAPI)"; exit 1; fi
 	@echo "==> Generating Go client from $(OPENAPI)"
 	@mkdir -p packages/clients/go
-	@GOBIN_DIR="$$(go env GOPATH)/bin"; \
-	export PATH="$$GOBIN_DIR:$$PATH"; \
-	if [ -f "$(OAPI_CFG)" ]; then \
+	@if [ -f "$(OAPI_CFG)" ]; then \
 		oapi-codegen -config $(OAPI_CFG) -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
 	else \
 		oapi-codegen -generate types,client -o packages/clients/go/engine.gen.go -package engine $(OPENAPI); \
@@ -177,7 +189,11 @@ lint: ## run linters when available
 		echo "Skipping Python lint"; \
 	fi
 	@if [ -n "$(HAS_GO)" ]; then \
-		cd $(GO_DIR) && golangci-lint run || echo 'Install golangci-lint to enable Go lint'; \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd $(GO_DIR) && golangci-lint run; \
+		else \
+			echo "golangci-lint not installed; run: make tools"; \
+		fi; \
 	else \
 		echo "Skipping Go lint"; \
 	fi
